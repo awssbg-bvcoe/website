@@ -237,7 +237,9 @@ Core team (decided with the user: use the **appointment letter titles**, not the
 | Pakhshi Luthra | Treasurer | Treasurer |
 | Arya Bhardwaj | General Secretary | General Secretary |
 
-No photos or profile links were supplied. Cards fall back to a pixel monogram until `photo` (path under `/public/team/`) and `links` are added in `team.ts`. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
+Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the card's 4:3 frame), cropped waist-up with the face at about 38% height, JPEG q82 progressive, all EXIF/GPS metadata stripped. All six members have photos (Tanisha's source was 526px square, so hers is 526x394, never upscaled). The pixel monogram remains the fallback for any future member without a photo. To add or replace one: crop to 4:3 the same way, strip metadata, save under `public/team/`, set `photo` in `team.ts`.
+
+Card order (array order in `team.ts`, user-specified; it drives both the mobile pass and the desktop board spots): Samyak, Arya, Pakhshi, Chetna, Tanisha, Aamir. On desktop that keeps Arya next to Samyak and Aamir in the bottom-right spot. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
 
 Legal line in the footer: "AWS Student Builder Groups exist exclusively for educational purposes. Amazon Web Services, AWS and related marks are trademarks of Amazon.com, Inc. or its affiliates." Keep it.
 
@@ -467,6 +469,21 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Tanisha's photo
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: Tanisha's photo (from `~/projects/optica-website/public/team/tanisha.png`, 526x526).
+- Files added: `public/team/tanisha-kaur.jpg` (526x394 4:3 crop, face about a third down, metadata stripped, 49 KB; not upscaled).
+- Files changed: `src/content/team.ts` (`photo`).
+- Verified: crop checked visually; `pnpm build` clean.
+
+#### 2026-11-11: Team photos and card order
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: five team photos (Aamir, Samyak, Arya, Pakhshi, Chetna) and the mobile card order "samyak arya pakhshi chetna tanisha aamir".
+- Files added: `public/team/{samyak-jain,arya-bhardwaj,pakhshi-luthra,chetna-negi,aamir-ali-zaidi}.jpg` (89 to 142 KB each; processed as described in section 7 with Pillow in a scratch venv).
+- Files changed: `src/content/team.ts` (order; `photo` paths).
+- Verified (production build): `/_next/image` serves the photos (200 image/jpeg); 390x844 order Samyak > Arya > Pakhshi > Chetna > Tanisha > Aamir with photos rendered in the pinned pass; 1440x900 board screenshot shows all five photos and the TK monogram, every card inside the board (Aamir 21px from the bottom edge).
+- Not verified: photo crops on very narrow phones (they use `object-cover` in the same 4:3 frame, so the framing holds).
 
 #### 2026-11-11: Second commit and push (link shortener, metadata, socials)
 - Agent/tool: Claude Code (Claude Opus 5.5)
