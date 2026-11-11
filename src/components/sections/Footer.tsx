@@ -76,6 +76,19 @@ export function Footer() {
       </div>
 
       <ul className="relative mt-10 flex flex-wrap gap-2 px-4 sm:px-8" aria-label="Elsewhere">
+        <li>
+          <a
+            href={`mailto:${site.contactEmail}`}
+            className="pressable inline-flex h-11 items-center border-2 border-mint-ink bg-mint-ink px-4 font-mono text-sm font-bold text-mint hover:bg-grey-850"
+          >
+            {site.contactEmail}
+          </a>
+        </li>
+        <li>
+          <a href="#partner" className="pressable inline-flex h-11 items-center border-2 border-mint-ink px-4 text-sm font-bold uppercase hover:bg-mint-ink hover:text-mint">
+            Partner with us
+          </a>
+        </li>
         {links.map((link) => (
           <li key={link.href}>
             <a

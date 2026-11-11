@@ -96,7 +96,7 @@ src/proxy.ts                   short-link redirects (/{slug} -> 307) + click rec
 src/app/
   layout.tsx                   root: fonts (next/font/local), metadata, skip link, seen-session inline script
   (site)/layout.tsx            public site only: Preloader, SmoothScroll, PixelTrail (admin and 404 skip them)
-  (site)/page.tsx              Nav + main(Hero, About, Programs, Team, Advisor, Join) + Footer
+  (site)/page.tsx              Nav + main(Hero, About, Programs, Team, Advisor, Join, Partner) + Footer
   admin/                       links admin: layout (noindex), page (dashboard), login/, links/[id]/ (stats, QR, edit, delete), actions.ts (server actions)
   api/auth/github|callback|logout   hand-written GitHub OAuth (state cookie, allowlist, DB sessions)
   api/admin/qr/[slug]          SVG QR download (admin only)
@@ -142,6 +142,7 @@ src/components/
   sections/Team.tsx            draggable team board (desktop), snap scroller (mobile)
   sections/Advisor.tsx         faculty advisor: tilted portrait + stamp, scrambled name, role, bio, credential tiles
   sections/Join.tsx            "Build with us" + join card
+  sections/Partner.tsx         sponsorship/collaboration: "Partner with us", mint partner pass (stats, barcode, mailto), four ways-to-collaborate tiles
   sections/Footer.tsx          mint footer, marquee, legal line, 404 game link
   game/PacketGame.tsx          canvas snake-style game with keyboard, swipe and d-pad
 ```
@@ -150,7 +151,7 @@ src/components/
 
 ## 5. Page structure and section contracts
 
-Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#programs`) > Team (`#team`) > Advisor (`#advisor`, not in the nav) > Join (`#join`) > Footer.
+Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#programs`) > Team (`#team`) > Advisor (`#advisor`, not in the nav) > Join (`#join`) > Partner (`#partner`, not in the nav; linked from the footer) > Footer.
 
 | Section | Layout family | Key behaviour | Content source |
 |---|---|---|---|
@@ -160,7 +161,8 @@ Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#progr
 | Team | Draggable board / mobile pinned horizontal pan | Desktop: absolute spots with rotations (`spots` array), Draggable with inertia and bounds. Mobile (<1024px): board pins and vertical scroll pans through every card, then releases (see 9.5). Reduced motion on mobile: native horizontal scroll-snap, focusable (`tabIndex=0`) | `team.ts` |
 | Advisor | Split (portrait 4 cols, text 8 cols on `lg`): tilted paper-framed 4:5 portrait, capped at 15rem phones / 17rem `sm` / 21rem `lg` (user asked for it smaller), with a "Faculty Advisor" stamp, then label h2, big mono name, role, bio and three credential tiles | Frame lands from a tilt, photo wipes up in 10 steps (`clip-path`), mint pixel corner brackets and stamp snap in, three credential stickers (trophy amber, bolt mint, speaker blue) pop in, float and follow the pointer at different depths, name scrambles, tiles switch on in steps. After the intro: a random name letter glitches in a brand colour every 0.9 to 2.2s (SplitText `words,chars`, G20), a mint outline walks across the credential tiles with an icon pulse, tile icons step 90° on hover. A ghost program icon (460px, `grey-800`) turns in 90° CSS steps behind the portrait; portrait and ghost drift against each other on scroll. Resting tilts live on wrappers (frame wrapper, sticker float wrapper via CSS `rotate`) and the tile hover on an inner div so nothing fights GSAP (G19). Reduced motion: all static | `advisor` in `team.ts` |
 | Join | Big type + perks list + paper card | Char reveal, card rises with tilt | `site.joinUrl` |
-| Footer | Mint block + marquee | GSAP marquee (static under reduced motion); pills for Builder Center, Instagram, LinkedIn; "Made with <3 by Samyak Jain" linking to GitHub | `site.programUrl`, `site.socials`, `site.maker` |
+| Partner | Big char-split title + mint "partner pass" ticket (perforated edge, pixel barcode with a looping scan line, real stats, "Write to us" mailto with a pre-filled subject, the address, LinkedIn fallback link) + 2x2 colour-block tiles | Title chars rise in random order, pass lands from a tilt, barcode bars switch on randomly, tiles rise from alternating tilts; the email scrambles on hover; tile icons step 90° on hover. Hover lives on inner divs (G19). Reduced motion: static | `site.contactEmail`, `partnerWays`, `stats` |
+| Footer | Mint block + marquee | GSAP marquee (static under reduced motion); pills for the club email (mailto), "Partner with us" (#partner), Builder Center, Instagram, LinkedIn; "Made with <3 by Samyak Jain" linking to GitHub | `site.programUrl`, `site.socials`, `site.maker` |
 
 Each layout family appears once on the page. Do not add a second marquee-style element outside the hero tapes and footer without the user asking.
 
@@ -246,6 +248,8 @@ Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the
 Card order (array order in `team.ts`, user-specified; it drives both the mobile pass and the desktop board spots): Samyak, Arya, Pakhshi, Chetna, Tanisha, Aamir. On desktop that keeps Arya next to Samyak and Aamir in the bottom-right spot. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
 
 Faculty advisor: **Dr. Yugnanda Puri**. Role "President, Institute Innovation Cell" with "IIC (AICTE, Ministry of Education)"; credentials Ph.D. in Optical Communication, Dean of R&D, Associate Professor. Source: the faculty advisor section of `~/projects/optica-website` (she advises both clubs). By user decision nothing Optica-specific is shown (no "Founded BVP Optica", no Optica bio, no Optica quote; no quote at all until she gives one for this club). Photo `public/team/yugnanda-puri.jpg` (800x1000, 4:5, from the Optica site's `yugnanda_mam.jpg`, metadata stripped).
+
+Club contact email: `awssbg.bvcoe@gmail.com` (`site.contactEmail`, supplied by the user 2026-11-11). Used by the partner section (mailto with subject "Partnership with AWS Student Builder Group, BVCOE") and the footer. The partner offers (`partnerWays` in `site.ts`) stay within what the programme does: sponsored events, sessions/demos/labs, careers and mentoring, co-hosting with other clubs (from the KT deck). No tiers, prices or sponsor names are stated; add them only from real material.
 
 Legal line in the footer: "AWS Student Builder Groups exist exclusively for educational purposes. Amazon Web Services, AWS and related marks are trademarks of Amazon.com, Inc. or its affiliates." Keep it.
 
@@ -475,6 +479,14 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Sponsorship and collaboration section; club email
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in a sponsorship reachout section cum collaboration section as well". Decisions (user): contact by email link, section after Join; email `awssbg.bvcoe@gmail.com`, also in the footer.
+- Files added: `src/components/sections/Partner.tsx`.
+- Files changed: `src/content/site.ts` (`contactEmail`, `PartnerWay` type, `partnerWays`); `src/app/(site)/page.tsx` (Partner after Join); `src/components/sections/Footer.tsx` (email pill and "Partner with us" pill).
+- Verified (production build): 1440x900 screenshot of the section; mailto `mailto:awssbg.bvcoe@gmail.com?subject=Partnership%20with%20AWS%20Student%20Builder%20Group%2C%20BVCOE`; footer email link present; axe 0 violations on `#partner` and `footer`; 390x844 screenshot, no horizontal overflow.
+- Not verified: 768px, reduced-motion visual pass.
 
 #### 2026-11-11: Faculty advisor section given more motion
 - Agent/tool: Claude Code (Claude Opus 5.5)

@@ -20,6 +20,8 @@ export const site = {
     { label: "LinkedIn", href: "https://www.linkedin.com/company/aws-student-builder-group-bvp/" },
   ] as { label: string; href: string }[],
   maker: { name: "Samyak Jain", href: "https://github.com/sammyyakk" },
+  /** Club inbox (sponsors, partners, general contact). Shown in the partner section and the footer. */
+  contactEmail: "awssbg.bvcoe@gmail.com",
 } as const;
 
 export const nav = [
@@ -95,3 +97,13 @@ export const stats = [
   { value: "68+", label: "Countries in the network" },
   { value: "6+", label: "Events planned this term" },
 ] as const;
+
+export type PartnerWay = { title: string; body: string; icon: BrandIconName; tone: "mint" | "amber" | "purple" | "blue" };
+
+/** Ways to work with the group (all within what the programme does: events, sessions, careers, club collabs). */
+export const partnerWays: PartnerWay[] = [
+  { title: "Sponsor an event", body: "Put your name on a hands-on workshop or a certification study series.", icon: "trophy", tone: "amber" },
+  { title: "Run a session", body: "Teach a workshop, demo your product or walk students through a live lab.", icon: "speaker", tone: "mint" },
+  { title: "Meet builders", body: "Talk careers, mentor a project and meet students for internships.", icon: "ladder", tone: "purple" },
+  { title: "Co-host with us", body: "Clubs and communities: plan joint events and build something together.", icon: "teams", tone: "blue" },
+];
