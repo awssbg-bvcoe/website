@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local agent settings
 .claude/settings.local.json
+
+# repo-local Vercel CLI login (club account); never commit
+.vercel-cli/

@@ -6,12 +6,20 @@ export const site = {
   tagline: "Shaping the future through cloud technology",
   description:
     "The AWS Student Builder Group at Bharati Vidyapeeth's College of Engineering, New Delhi. A student-led community learning cloud and AI through hands-on workshops, certification prep and career sessions.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  // Absolute origin for metadata and share images. On Vercel, fall back to the production domain
+  // so WhatsApp, X and Discord always get an absolute https image URL.
+  url:
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
   /** Where "Join the group" sends people. Swap for the group's own page or registration form. */
   joinUrl: "https://builder.aws.com/community/student-builder-groups",
   programUrl: "https://builder.aws.com/community/student-builder-groups",
   /** Add the group's channels here; empty entries are not rendered. */
-  socials: [] as { label: string; href: string }[],
+  socials: [
+    { label: "Instagram", href: "https://www.instagram.com/awssbg.bvp/" },
+    { label: "LinkedIn", href: "https://www.linkedin.com/company/aws-student-builder-group-bvp/" },
+  ] as { label: string; href: string }[],
+  maker: { name: "Samyak Jain", href: "https://github.com/sammyyakk" },
 } as const;
 
 export const nav = [

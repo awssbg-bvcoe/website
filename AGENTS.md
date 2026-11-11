@@ -89,9 +89,16 @@ CLAUDE.md                      imports AGENTS.md for Claude Code
 next.config.ts                 cacheComponents, partialPrefetching, Tailwind turbopack loader
 public/brand/icons/*.svg       11 brand-kit icons (white set, verified by shape, see 6.3)
 public/brand/mark/chip.svg     program icon (the "chip"), white
+db/migrations/*.sql            plain SQL migrations, applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
+scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
+src/proxy.ts                   short-link redirects (/{slug} -> 307) + click recording via waitUntil; cookie gate for /admin
 src/app/
-  layout.tsx                   fonts (next/font/local), metadata, skip link, Preloader, SmoothScroll, PixelTrail, seen-session inline script
-  page.tsx                     Nav + main(Hero, About, Programs, Team, Join) + Footer
+  layout.tsx                   root: fonts (next/font/local), metadata, skip link, seen-session inline script
+  (site)/layout.tsx            public site only: Preloader, SmoothScroll, PixelTrail (admin and 404 skip them)
+  (site)/page.tsx              Nav + main(Hero, About, Programs, Team, Join) + Footer
+  admin/                       links admin: layout (noindex), page (dashboard), login/, links/[id]/ (stats, QR, edit, delete), actions.ts (server actions)
+  api/auth/github|callback|logout   hand-written GitHub OAuth (state cookie, allowlist, DB sessions)
+  api/admin/qr/[slug]          SVG QR download (admin only)
   globals.css                  tokens, z-index scale, Lenis CSS, custom classes in @layer components
   not-found.tsx                404 page with the Packet run game (also reached via /press-start)
   opengraph-image.tsx          home OG image (uses src/lib/og.tsx)
@@ -103,9 +110,16 @@ src/content/
   site.ts                      site constants, nav, programs, stats, BrandIconName type, joinUrl, socials
   team.ts                      core team data (photo and links optional)
 src/lib/
+  db.ts                        lazy Neon HTTP query function (`sql()`), server-only
+  site-origin.ts               request origin from headers (works on previews and custom domains)
+  auth/constants.ts            cookie names (kept separate so the proxy stays light)
+  auth/session.ts              allowlist, create/verify/end/revoke sessions (SHA-256 token hashes in admin_sessions)
+  links/validate.ts            SLUG_RE, RESERVED, parseLinkInput, deviceClass, referrerHost
+  links/repo.ts                link queries, 30s per-instance lookup cache, stats queries
   gsap.ts                      plugin registration, custom eases, SCRAMBLE_CHARS, PRELOADER_DONE event, whenIntroDone(), reducedMotion()
   og.tsx                       renderOg({ lines, kicker, accent, footer }) shared OG card
 src/components/
+  admin/                       LinkForm (useActionState, per-field errors), CopyButton, DeleteButton, AdminHeader, ClicksChart + Breakdown
   brand/BrandIcon.tsx          renders kit icons as CSS masks (inherit currentColor); holds aspect ratios
   brand/Lockup.tsx             chip + mono wordmark lockup; iconClassName prop for colour
   motion/Preloader.tsx         first-visit intro, inert page while showing, fallback timer, dispatches PRELOADER_DONE
@@ -143,7 +157,7 @@ Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#progr
 | Programs | Sticky stack | Cards pin at `top top`, land with a ±5° tilt, earlier card scales to 0.92 and darkens via a shade layer (never opacity on the card) | `programs` in `site.ts` |
 | Team | Draggable board / mobile pinned horizontal pan | Desktop: absolute spots with rotations (`spots` array), Draggable with inertia and bounds. Mobile (<1024px): board pins and vertical scroll pans through every card, then releases (see 9.5). Reduced motion on mobile: native horizontal scroll-snap, focusable (`tabIndex=0`) | `team.ts` |
 | Join | Big type + perks list + paper card | Char reveal, card rises with tilt | `site.joinUrl` |
-| Footer | Mint block + marquee | CSS marquee (paused under reduced motion) | `site.programUrl`, `site.socials` |
+| Footer | Mint block + marquee | GSAP marquee (static under reduced motion); pills for Builder Center, Instagram, LinkedIn; "Made with <3 by Samyak Jain" linking to GitHub | `site.programUrl`, `site.socials`, `site.maker` |
 
 Each layout family appears once on the page. Do not add a second marquee-style element outside the hero tapes and footer without the user asking.
 
@@ -350,7 +364,7 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 
 ## 13. SEO, metadata and OG images
 
-- Metadata in `layout.tsx`: title template `%s | AWS SBG BVCOE`, description from `site.description`, `metadataBase` from `NEXT_PUBLIC_SITE_URL` (falls back to `http://localhost:3000`; set it on Vercel).
+- Metadata in `layout.tsx`: title template `%s | AWS SBG BVCOE`, description, canonical `/`, author/creator (Samyak Jain), keywords, full `openGraph` (title, description, url, site_name, type, locale) and `twitter` (`summary_large_image`, title, description). `og:image` / `twitter:image` with type, width, height and alt are emitted by the `opengraph-image.tsx` / `twitter-image.tsx` file conventions. `metadataBase` = `site.url` = `NEXT_PUBLIC_SITE_URL`, else `https://$VERCEL_PROJECT_PRODUCTION_URL` (Vercel system env), else localhost, so share images are always absolute https on Vercel (WhatsApp and Discord need that). `theme-color` is mint `#00e582`: Discord uses it for the embed side bar (it also tints mobile browser chrome).
 - `renderOg({ lines, kicker, accent, footer })` in `src/lib/og.tsx` produces the 1200x630 card: pixel grid at 70px, stepped brand blocks in the accent colour, a tilted 9x9 pixel chip, Ember Mono headline (second line in accent) and the lockup footer. Every new route should add an `opengraph-image.tsx` that calls it (the planned link shortener should use it per slug). `twitter-image.tsx` re-exports.
 - Satori rules: every element needs `display: flex` when it has children; fonts must be TTF/OTF/WOFF (not woff2), read with `readFile(join(process.cwd(), "src/assets/og/..."))`.
 
@@ -360,9 +374,13 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 
 | Name | Where | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | Vercel (all environments) | Canonical URL for metadata and OG |
+| `NEXT_PUBLIC_SITE_URL` | Vercel (all environments), `.env.local` | Canonical URL for metadata and OG |
+| `DATABASE_URL` | Vercel (from the Neon integration), `.env.local` | Pooled Neon connection, used by the app |
+| `DATABASE_URL_UNPOOLED` | `.env.local` (and Vercel if migrations ever run there) | Direct connection for `pnpm db:migrate` |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Vercel (prod OAuth app), `.env.local` (local OAuth app) | GitHub sign-in for /admin. Two OAuth apps on the club GitHub account because each allows one callback: `<origin>/api/auth/callback` |
+| `ADMIN_GITHUB_USERS` | Vercel, `.env.local` | Comma-separated GitHub usernames allowed into /admin. Removing a name locks that person out on their next request (the allowlist is re-checked on every session read) |
 
-Planned for the link shortener (not created yet): a database URL from the chosen provider, an admin auth secret. Add rows here when they exist. Never write values.
+Database: Neon Postgres 18, region AWS ap-southeast-1 (Singapore), database `neondb`. Set the Vercel Function Region to Singapore (sin1) to sit next to it. Tables: `links`, `link_clicks`, `admin_sessions`, `schema_migrations`.
 
 ---
 
@@ -393,14 +411,24 @@ This repo deliberately uses the **club's** GitHub account, not the maintainer's 
 |---|---|---|
 | First commit and push | Done 2026-11-11 | `main` pushed to `awssbg-bvcoe/website` |
 | Team photos and LinkedIn/GitHub links | Waiting on user | Drop files into `public/team/`, set `photo` and `links` in `team.ts` |
-| Group-specific join URL and socials | Waiting on user | `site.joinUrl` currently points to the programme page; `site.socials` empty |
-| Link shortener + redirects | Not started; needs decisions | Database: Neon via Vercel Marketplace (needs the Vercel project linked first) or Neon direct. Admin auth: one shared password or GitHub OAuth limited to the core team. |
+| Group-specific join URL | Waiting on user | `site.joinUrl` still points to the programme page. Socials done (Instagram `awssbg.bvp`, LinkedIn `aws-student-builder-group-bvp`) |
+| Link shortener + redirects | Built 2026-11-11 | Needs the GitHub OAuth apps and `ADMIN_GITHUB_USERS` set before anyone can sign in (see section 14) |
+| Rotate the Neon password | Recommended | The connection string was pasted into a chat transcript on 2026-11-11 |
 | Vercel project + domain | Not started | Club Vercel account |
 | 768px verification | Not done | |
 | Reduced-motion browser pass of the new hero | Not done | Logic is gated, but not visually verified |
 | Mid-range phone performance of the hero | Not measured | Pixel rain + three.js on real hardware |
 
-### 16.1 Link shortener target spec (agreed direction, refine with the user)
+### 16.1 Link shortener (as built)
+
+- Decisions (user): GitHub sign-in limited to an allowlist; links at the root (`/{slug}`).
+- Redirect path: `src/proxy.ts` matches single-segment paths (`/:slug((?!_next)[^/.]+)`). `isUsableSlug` (regex + `RESERVED`) filters first, then `findActiveLink` (enabled, not expired; 30s per-instance cache, cleared on the instance that writes), then a **307** with `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`. Misses and DB errors fall through to the app (404 game). Clicks are recorded only for GET, after the response, via `event.waitUntil`: device class, referrer host and `x-vercel-ip-country`; never IPs, full referrers or user agents. Bots are stored as `bot` and excluded from every admin number.
+- Adding a new top-level route? Add its first segment to `RESERVED` in `src/lib/links/validate.ts`, or an existing short link could shadow it in the proxy.
+- Auth: `/api/auth/github` sets a 10-minute `state` cookie (path `/api/auth`) and redirects to GitHub (`read:user`); `/api/auth/callback` compares state in constant time, exchanges the code, reads `/user`, lowercases the login and checks `ADMIN_GITHUB_USERS`; sessions are 32 random bytes in an httpOnly SameSite=Lax cookie (`sbg_admin`, 7 days) and only their SHA-256 is stored. Logout is POST only and revokes the row. The proxy redirects `/admin*` without a cookie to `/admin/login`; every page and server action still calls `currentAdmin()` itself.
+- Admin UI: dashboard (totals, create form, list with status, 7-day and total clicks, last click, copy, on/off, link to detail); detail page (30-day IST daily chart with hover tooltips and an sr-only table, top referrers/countries/devices, bot count, QR preview + SVG download, edit form, delete with confirm). Toggle is a single `update ... set enabled = not enabled` (no lost updates).
+- Validation: slug `^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$` (also enforced by a DB check constraint), not reserved, unique; URL must parse, be http(s), at most 2048 chars, and not point at another short link on this host; note at most 280; expiry must be in the future.
+
+### 16.2 Original target spec (kept for reference)
 
 Improve on the maintainer's earlier project (`~/projects/optica-website`, Neon raw SQL, `/[slug]` page with a 5s JS countdown, no analytics). Target:
 
@@ -439,6 +467,31 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Second commit and push (link shortener, metadata, socials)
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "just push everything to github". The user will set Vercel environment variables themselves (Vercel CLI work was stopped at their request). `.env.local` holds the **production** GitHub OAuth app's keys; local sign-in needs the local app's keys in `.env.development.local`.
+- Files changed: `.gitignore` (`.vercel-cli/`, a repo-local Vercel CLI login folder).
+- Git: commit on `main` as `awssbg-bvcoe`, no attribution trailers; pushed to `origin`. `.env.local`, `.vercel/` and `.vercel-cli/` are ignored and were not committed.
+
+#### 2026-11-11: Social share metadata, socials and maker credit
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: proper Open Graph for WhatsApp, Twitter/X and Discord; "made with <3 by samyak jain" linking to https://github.com/sammyyakk; Instagram https://www.instagram.com/awssbg.bvp/ and LinkedIn https://www.linkedin.com/company/aws-student-builder-group-bvp/ in the footer. User also confirmed the GitHub OAuth apps and env vars are set (`.env.local` now has GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_USERS; values not read).
+- Files changed: `src/content/site.ts` (`url` fallback to `VERCEL_PROJECT_PRODUCTION_URL`; `socials` Instagram + LinkedIn; `maker`); `src/app/layout.tsx` (metadata described in section 13; theme-color mint); `src/components/sections/Footer.tsx` (maker credit with `<3` and an sr-only "love").
+- Verified (production build, local): head contains og:title/description/url/site_name/locale/type, og:image with type/width/height/alt, twitter:card summary_large_image with title/description/image/alt, canonical, author, theme-color; OG image 200 image/png 69 KB (under WhatsApp's limit); footer links Builder Center, Instagram, LinkedIn, Samyak Jain (GitHub), 404 game; axe 0 violations in the footer; screenshot at 1440.
+- Not verified: live previews in WhatsApp/X/Discord (needs the deployed URL; use the platforms' debuggers or paste the link once deployed).
+
+#### 2026-11-11: Link shortener, GitHub-auth admin and Neon database
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: a better version of the optica-website link shortener and redirect system; the user created a Neon database (Singapore) and chose GitHub sign-in and root `/{slug}` links.
+- Dependencies added: `@neondatabase/serverless@^1.2.0`, `qrcode@^1.5.4`, `server-only`, dev `@types/qrcode@^1.5.6`. Script added: `db:migrate`.
+- Files added: `db/migrations/001_links.sql`, `scripts/migrate.mjs`, `src/proxy.ts`, `src/lib/db.ts`, `src/lib/site-origin.ts`, `src/lib/auth/{constants,session}.ts`, `src/lib/links/{validate,repo}.ts`, `src/app/api/auth/{github,callback,logout}/route.ts`, `src/app/api/admin/qr/[slug]/route.ts`, `src/app/admin/{layout,page,actions}.tsx|ts`, `src/app/admin/login/page.tsx`, `src/app/admin/links/[id]/page.tsx`, `src/components/admin/*`, `src/app/(site)/layout.tsx`, `.env.local` (git-ignored, holds the Neon URLs).
+- Files moved/changed: `src/app/page.tsx` to `src/app/(site)/page.tsx`; `src/app/layout.tsx` no longer mounts Preloader/SmoothScroll/PixelTrail (moved to the `(site)` layout so /admin and 404 get a plain shell).
+- Database: migration 001 applied to the Neon database (tables links, link_clicks, admin_sessions, schema_migrations).
+- Verified (production build, local, real database): temporary link `zz-test` returned 307 to its target (also for `/ZZ-TEST`), recorded `mobile` + `www.instagram.com` for an iPhone UA with an Instagram referrer, `desktop`, and `bot` for WhatsApp; unknown and reserved paths 404; `/admin` without a cookie 307 to login; a forged session cookie streams only a redirect to login (no link data in the HTML); QR route 401 without auth; OAuth start reports `error=config` until the client ID exists; a forged callback reports `error=state`; `/icon.svg` unaffected. The test link was deleted afterwards (its clicks cascaded).
+- Not verified: a real GitHub sign-in round trip (needs the OAuth apps), the admin UI in a browser, the deployment on Vercel.
+- Security: the Neon password was pasted into the chat; rotating it is listed in section 16.
+- Follow-ups: user creates the two GitHub OAuth apps and sets `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `ADMIN_GITHUB_USERS` locally and on Vercel; set Vercel Function Region to sin1; then test sign-in and the admin UI.
 
 #### 2026-11-11: First commit and push; no-attribution rule
 - Agent/tool: Claude Code (Claude Opus 5.5)

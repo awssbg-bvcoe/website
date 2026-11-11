@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { PixelTrail } from "@/components/motion/PixelTrail";
-import { Preloader } from "@/components/motion/Preloader";
-import { SmoothScroll } from "@/components/motion/SmoothScroll";
 import { site } from "@/content/site";
 import "./globals.css";
 
@@ -35,18 +32,31 @@ export const metadata: Metadata = {
     template: `%s | ${site.shortName}`,
   },
   description: site.description,
+  applicationName: site.shortName,
+  authors: [{ name: site.maker.name, url: site.maker.href }],
+  creator: site.maker.name,
+  keywords: ["AWS Student Builder Group", "BVCOE", "Bharati Vidyapeeth", "AWS", "cloud", "student community", "New Delhi"],
+  alternates: { canonical: "/" },
+  // og:image / twitter:image (with width, height, type and alt) come from app/opengraph-image.tsx and
+  // app/twitter-image.tsx; metadataBase makes them absolute, which WhatsApp and Discord require.
   openGraph: {
     title: `${site.name} at BVCOE`,
     description: site.description,
+    url: "/",
     siteName: site.shortName,
     type: "website",
     locale: "en_IN",
   },
-  twitter: { card: "summary_large_image" },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} at BVCOE`,
+    description: site.description,
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#161d26",
+  // Discord colours the embed side bar with theme-color
+  themeColor: "#00e582",
   colorScheme: "dark",
 };
 
@@ -68,10 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <Preloader />
-        <SmoothScroll />
         {children}
-        <PixelTrail />
       </body>
     </html>
   );

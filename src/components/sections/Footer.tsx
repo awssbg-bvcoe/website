@@ -95,6 +95,13 @@ export function Footer() {
           exist exclusively for educational purposes. Amazon Web Services, AWS and related marks are trademarks of
           Amazon.com, Inc. or its affiliates.
         </p>
+        <p className="shrink-0 font-mono text-sm">
+          Made with <span aria-hidden="true">&lt;3</span>
+          <span className="sr-only">love</span> by{" "}
+          <a href={site.maker.href} target="_blank" rel="noreferrer" className="link-draw font-bold [--u-bottom:-2px] [--u-inset:0]">
+            {site.maker.name}
+          </a>
+        </p>
         <Link href="/press-start" prefetch={false} className="pressable inline-flex h-10 shrink-0 items-center gap-2 bg-mint-ink px-4 font-bold text-mint uppercase hover:bg-grey-850">
           <BrandIcon name="bolt" size={14} />
           Play the 404 game
