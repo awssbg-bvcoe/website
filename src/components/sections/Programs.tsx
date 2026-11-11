@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import { BrandIcon } from "@/components/brand/BrandIcon";
 import { ProgramVisual } from "@/components/programs/ProgramVisual";
 import { programs, type Program } from "@/content/site";
@@ -58,6 +58,10 @@ export function Programs() {
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         const cards = gsap.utils.toArray<HTMLElement>("[data-stack-card]");
+        // Cards hold with CSS sticky (motion-safe:sticky), not a ScrollTrigger pin: phones run momentum
+        // scrolling on the compositor, and a JS pin applied a frame late, so cards jumped (G21).
+        // A stuck element moves, so it cannot be a trigger; each card has a zero-height marker in flow instead.
+        const marks = gsap.utils.toArray<HTMLElement>("[data-stack-mark]");
 
         cards.forEach((card, i) => {
           const inner = card.querySelector<HTMLElement>("[data-stack-inner]")!;
@@ -70,27 +74,15 @@ export function Programs() {
               rotate: 0,
               yPercent: 0,
               ease: "none",
-              scrollTrigger: { trigger: card, start: "top bottom", end: "top top", scrub: true },
+              scrollTrigger: { trigger: marks[i], start: "top bottom", end: "top top", scrub: true },
             },
           );
 
           if (i === cards.length - 1) return;
-          gsap.timeline({
-            scrollTrigger: {
-              trigger: card,
-              start: "top top",
-              endTrigger: cards[cards.length - 1],
-              end: "top top",
-              pin: true,
-              pinSpacing: false,
-              anticipatePin: 1,
-              invalidateOnRefresh: true,
-            },
-          });
           // Card stays opaque; a shade layer darkens it as the next one covers it
           const shade = card.querySelector<HTMLElement>("[data-stack-shade]")!;
           gsap
-            .timeline({ scrollTrigger: { trigger: cards[i + 1], start: "top 60%", end: "top top", scrub: true } })
+            .timeline({ scrollTrigger: { trigger: marks[i + 1], start: "top 60%", end: "top top", scrub: true } })
             .to(inner, { scale: 0.92, ease: "none" }, 0)
             .to(shade, { opacity: 0.65, ease: "none" }, 0);
         });
@@ -109,10 +101,11 @@ export function Programs() {
       </div>
       <div>
         {programs.map((program, i) => (
+          <Fragment key={program.id}>
+          <div data-stack-mark aria-hidden="true" />
           <div
-            key={program.id}
             data-stack-card
-            className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8"
+            className="relative flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-8 motion-safe:sticky motion-safe:top-0"
             style={{ zIndex: i + 1 }}
           >
             <div data-stack-inner className="relative w-full max-w-6xl will-change-transform">
@@ -120,6 +113,7 @@ export function Programs() {
               <div data-stack-shade aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grey-850 opacity-0" />
             </div>
           </div>
+          </Fragment>
         ))}
       </div>
     </section>
