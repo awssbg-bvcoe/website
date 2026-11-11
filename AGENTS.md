@@ -89,6 +89,7 @@ CLAUDE.md                      imports AGENTS.md for Claude Code
 next.config.ts                 cacheComponents, partialPrefetching, Tailwind turbopack loader
 public/brand/icons/*.svg       11 brand-kit icons (white set, verified by shape, see 6.3)
 public/brand/mark/chip.svg     program icon (the "chip"), white
+public/icons/*.png             192, 512 and maskable 512 PNG icons for the manifest (from src/app/icon.svg; maskable variant has the chip at 50% for the safe zone)
 public/brand/mark/aws.svg      AWS logo (smile), vector from the official SBG presentation template (ppt/media/image9.svg)
 db/migrations/*.sql            plain SQL migrations, applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
 scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
@@ -105,6 +106,10 @@ src/app/
   opengraph-image.tsx          home OG image (uses src/lib/og.tsx)
   twitter-image.tsx            re-exports opengraph-image
   icon.svg                     favicon: mint chip on Grey 850
+  apple-icon.png               180px home-screen icon (rendered from icon.svg with rsvg-convert)
+  robots.ts / sitemap.ts       robots.txt (blocks /admin, /api/; blocks everything on non-production Vercel deploys) and image sitemap
+  manifest.ts                  web app manifest (icons in public/icons/)
+  llms.txt/route.ts            plain-text summary for AI search, built from site.ts/team.ts
   fonts/*.woff2                subset Amazon Ember Display 300/500/700/800 and Ember Mono 400/700
 src/assets/og/*.ttf            TTF subsets for Satori (OG images cannot use woff2)
 src/content/
@@ -118,6 +123,7 @@ src/lib/
   links/validate.ts            SLUG_RE, RESERVED, parseLinkInput, deviceClass, referrerHost
   links/repo.ts                link queries, 30s per-instance lookup cache, stats queries
   gsap.ts                      plugin registration, custom eases, SCRAMBLE_CHARS, PRELOADER_DONE event, whenIntroDone(), reducedMotion()
+  seo.ts                       isNonProductionDeploy, abs(), indexableImages, homeJsonLd() (schema.org Organization + WebSite), jsonLdScript()
   og.tsx                       renderOg({ lines, kicker, accent, footer }) shared OG card
 src/components/
   admin/                       LinkForm (useActionState, per-field errors), CopyButton, DeleteButton, AdminHeader, ClicksChart + Breakdown
@@ -379,6 +385,13 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 
 - Metadata in `layout.tsx`: title template `%s | AWS SBG BVCOE`, description, canonical `/`, author/creator (Samyak Jain), keywords, full `openGraph` (title, description, url, site_name, type, locale) and `twitter` (`summary_large_image`, title, description). `og:image` / `twitter:image` with type, width, height and alt are emitted by the `opengraph-image.tsx` / `twitter-image.tsx` file conventions. `metadataBase` = `site.url` = `NEXT_PUBLIC_SITE_URL`, else `https://$VERCEL_PROJECT_PRODUCTION_URL` (Vercel system env), else localhost, so share images are always absolute https on Vercel (WhatsApp and Discord need that). `theme-color` is mint `#00e582`: Discord uses it for the embed side bar (it also tints mobile browser chrome).
 - `renderOg({ lines, kicker, accent, footer })` in `src/lib/og.tsx` produces the 1200x630 card: pixel grid at 70px, stepped brand blocks in the accent colour, a tilted 9x9 pixel chip, Ember Mono headline (second line in accent) and the lockup footer. The top row is the AWS logo (52px high, read from `public/brand/mark/aws.svg`, its template `<style>`/class stripped and the fill set to paper, passed as a base64 data URI `<img>`), a thin divider, then the kicker. Every card from `renderOg` carries it. Every new route should add an `opengraph-image.tsx` that calls it (the planned link shortener should use it per slug). `twitter-image.tsx` re-exports.
+- Crawling and indexing (added 2026-11-12):
+  - `robots.txt` (`src/app/robots.ts`): allow `/`, disallow `/admin` and `/api/`, `Sitemap:` and `Host:` from `site.url`. When `VERCEL_ENV` is set and is not `production` it disallows everything, and the page metadata switches to `noindex` (`isNonProductionDeploy` in `src/lib/seo.ts`).
+  - `sitemap.xml` (`src/app/sitemap.ts`): one URL (the site is one page; `#sections` are not URLs) with an image sitemap of the share card, team portraits and the advisor photo. Add an entry for every new public route.
+  - Structured data: `src/app/(site)/page.tsx` renders `homeJsonLd()` as `application/ld+json` (Organization with logo, socials (`sameAs`), email, contact point, parent CollegeOrUniversity, programmes as free offers, members via OrganizationRole incl. the faculty advisor; plus WebSite). Built from `site.ts`/`team.ts`, so content edits flow into it. `<` is escaped (Next's JSON-LD guidance).
+  - Metadata: expanded keywords, `category: education`, googleBot `max-image-preview: large`, `max-snippet: -1`, `max-video-preview: -1`, `formatDetection` off, `<html lang="en-IN">`, verification tags from `GOOGLE_SITE_VERIFICATION` / `BING_SITE_VERIFICATION` (only rendered when set).
+  - `manifest.webmanifest`, `apple-icon.png` and `public/icons/*` give install/home-screen icons; `llms.txt` summarises the group for AI assistants.
+  - `site.url` is inlined at build time: `NEXT_PUBLIC_SITE_URL` must be the final production domain on Vercel or canonical, sitemap and robots point at the wrong host.
 - Satori rules: every element needs `display: flex` when it has children; fonts must be TTF/OTF/WOFF (not woff2), read with `readFile(join(process.cwd(), "src/assets/og/..."))`.
 
 ---
@@ -392,6 +405,8 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 | `DATABASE_URL_UNPOOLED` | `.env.local` (and Vercel if migrations ever run there) | Direct connection for `pnpm db:migrate` |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Vercel (prod OAuth app), `.env.local` (local OAuth app) | GitHub sign-in for /admin. Two OAuth apps on the club GitHub account because each allows one callback: `<origin>/api/auth/callback` |
 | `ADMIN_GITHUB_USERS` | Vercel, `.env.local` | Comma-separated GitHub usernames allowed into /admin. Removing a name locks that person out on their next request (the allowlist is re-checked on every session read) |
+| `GOOGLE_SITE_VERIFICATION` | Vercel (Production), optional | Token from Google Search Console's HTML-tag method; renders `<meta name="google-site-verification">` |
+| `BING_SITE_VERIFICATION` | Vercel (Production), optional | Token from Bing Webmaster Tools; renders `<meta name="msvalidate.01">` |
 
 Database: Neon Postgres 18, region AWS ap-southeast-1 (Singapore), database `neondb`. Set the Vercel Function Region to Singapore (sin1) to sit next to it. Tables: `links`, `link_clicks`, `admin_sessions`, `schema_migrations`.
 
@@ -480,6 +495,16 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-12: SEO: robots.txt, sitemap, structured data, manifest, icons, llms.txt
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in robots.txt sitemap generation and everything seo related so i can get this crawled and increase reach as much as possible".
+- Files added: `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/manifest.ts`, `src/app/llms.txt/route.ts`, `src/app/apple-icon.png`, `public/icons/icon-192.png`, `public/icons/icon-512.png`, `public/icons/icon-maskable-512.png`, `src/lib/seo.ts` (details in section 13).
+- Files changed: `src/app/layout.tsx` (keywords, category, robots/googleBot directives, verification env vars, formatDetection, `lang="en-IN"`); `src/app/(site)/page.tsx` (JSON-LD script); `src/lib/links/validate.ts` (`icons`, `apple-icon`, `llms` reserved).
+- Decisions: sitemap lists only `/` (anchors are not URLs; `/press-start` and 404 are noindex; admin is private); JSON-LD states only facts already on the page.
+- Verified (production build, local): `/robots.txt`, `/sitemap.xml` (8 images), `/manifest.webmanifest`, icons, `/apple-icon.png`, `/llms.txt` all 200 with correct types; head has manifest, apple-touch-icon, robots, googlebot, keywords, category, canonical, format-detection; JSON-LD parses (Organization, 7 members, logo, 2 sameAs); lint and build clean.
+- Not verified: Google Rich Results Test and Search Console (need the live domain).
+- Follow-ups (user): set `NEXT_PUBLIC_SITE_URL` to the final domain on Vercel; verify the domain in Google Search Console and Bing Webmaster Tools (set the two verification env vars or use DNS verification) and submit `/sitemap.xml`; link the site from the Instagram and LinkedIn bios.
 
 #### 2026-11-12: Programs stack held with CSS sticky (no jump on phones)
 - Agent/tool: Claude Code (Claude Opus 5.5)

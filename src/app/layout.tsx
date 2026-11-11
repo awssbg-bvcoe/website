@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { site } from "@/content/site";
+import { isNonProductionDeploy } from "@/lib/seo";
 import "./globals.css";
 
 const emberDisplay = localFont({
@@ -35,8 +36,48 @@ export const metadata: Metadata = {
   applicationName: site.shortName,
   authors: [{ name: site.maker.name, url: site.maker.href }],
   creator: site.maker.name,
-  keywords: ["AWS Student Builder Group", "BVCOE", "Bharati Vidyapeeth", "AWS", "cloud", "student community", "New Delhi"],
+  keywords: [
+    "AWS Student Builder Group",
+    "AWS Student Builder Group BVCOE",
+    "AWS SBG BVCOE",
+    "AWS Cloud Clubs",
+    "BVCOE",
+    "Bharati Vidyapeeth's College of Engineering",
+    "Bharati Vidyapeeth",
+    "AWS",
+    "Amazon Web Services",
+    "cloud computing",
+    "AWS workshops",
+    "AWS certification prep",
+    "AWS Cloud Practitioner",
+    "serverless",
+    "generative AI",
+    "student tech community",
+    "college tech club",
+    "New Delhi",
+    "Delhi",
+  ],
+  category: "education",
   alternates: { canonical: "/" },
+  // Allow full-size image previews and unlimited snippets (Google Discover, image search, rich results).
+  // Preview deployments are kept out by robots.txt and Vercel's own noindex header.
+  robots: {
+    index: !isNonProductionDeploy,
+    follow: true,
+    googleBot: {
+      index: !isNonProductionDeploy,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  // Set these env vars with the tokens from Google Search Console / Bing Webmaster Tools (HTML tag method)
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {}),
+  },
+  formatDetection: { telephone: false, email: false, address: false },
   // og:image / twitter:image (with width, height, type and alt) come from app/opengraph-image.tsx and
   // app/twitter-image.tsx; metadataBase makes them absolute, which WhatsApp and Discord require.
   openGraph: {
@@ -65,7 +106,7 @@ const seenScript = `try{if(sessionStorage.getItem("sbg-seen"))document.documentE
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${emberDisplay.variable} ${emberMono.variable}`} suppressHydrationWarning>
+    <html lang="en-IN" className={`${emberDisplay.variable} ${emberMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: seenScript }} />
       </head>
