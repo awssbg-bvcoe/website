@@ -1,0 +1,211 @@
+@import "tailwindcss";
+
+/*
+ * Brand tokens: AWS Student Builder Group kit.
+ * The kit is dark-first (Grey 850 surfaces, pixel grid, solid colour blocks),
+ * so the site is locked to one dark theme on purpose.
+ */
+:root {
+  --grey-850: #161d26;
+  --grey-800: #1d2631;
+  --grey-700: #2a3542;
+  --grey-500: #5b6878;
+  --grey-300: #a9b4c0;
+  --paper: #f2f4f5;
+  --mint: #00e582;
+  --mint-ink: #04170e;
+  --purple: #ad5cff;
+  --amber: #ff9900;
+  --blue: #42b4ff;
+  --magenta: #ff57e9;
+
+  --ease-smooth: cubic-bezier(0.5, 0, 0, 1);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* z-index scale (only these values are used) */
+  --z-content: 1;
+  --z-trail: 40;
+  --z-nav: 50;
+  --z-preloader: 100;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-grey-850: var(--grey-850);
+  --color-grey-800: var(--grey-800);
+  --color-grey-700: var(--grey-700);
+  --color-grey-500: var(--grey-500);
+  --color-grey-300: var(--grey-300);
+  --color-paper: var(--paper);
+  --color-mint: var(--mint);
+  --color-mint-ink: var(--mint-ink);
+  --color-purple: var(--purple);
+  --color-amber: var(--amber);
+  --color-blue: var(--blue);
+  --color-magenta: var(--magenta);
+
+  --font-sans: var(--font-ember-display);
+  --font-mono: var(--font-ember-mono);
+
+  --ease-smooth: var(--ease-smooth);
+  --ease-out-strong: var(--ease-out-strong);
+  --ease-in-out-strong: var(--ease-in-out-strong);
+
+  --text-display: clamp(2rem, 9.4vw, 13rem);
+  --text-display--line-height: 0.92;
+  --text-display--letter-spacing: -0.04em;
+}
+
+/* Pinned sections are sized to innerWidth; clip so the scrollbar width never adds sideways scroll */
+html {
+  background: var(--grey-850);
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  background: var(--grey-850);
+  color: var(--paper);
+  font-family: var(--font-ember-display), system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--mint);
+  color: var(--mint-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* Custom utilities live in a layer so Tailwind utilities (hidden, sm:block...) can override them */
+@layer components {
+  /* Thin brand grid used on dark panels (mirrors the kit's grid backgrounds) */
+  .bg-pixel-grid {
+    background-image:
+      linear-gradient(to right, rgb(169 180 192 / 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(169 180 192 / 0.12) 1px, transparent 1px);
+    background-size: var(--cell, 64px) var(--cell, 64px);
+  }
+
+  /* Outline display row: keep `color` so the stroke can use currentColor */
+  .text-outline {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 0.025em currentColor;
+  }
+
+  /* Brand icons are single-colour SVGs; render them as masks so they take currentColor */
+  .brand-icon {
+    display: inline-block;
+    background-color: currentColor;
+    mask: var(--icon) center / contain no-repeat;
+    -webkit-mask: var(--icon) center / contain no-repeat;
+    flex-shrink: 0;
+  }
+
+  /* Pressable feedback */
+  .pressable {
+    transition:
+      transform 160ms var(--ease-out-strong),
+      background-color 200ms ease,
+      color 200ms ease;
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  /* Controls step up on hover and press back down on click (fine pointers only) */
+  @media (hover: hover) and (pointer: fine) {
+    .pressable:hover {
+      transform: translateY(-2px);
+    }
+    .pressable:active {
+      transform: translateY(0) scale(0.97);
+    }
+  }
+
+  /* Underline that draws in from the left on hover and out to the right */
+  .nav-link::after,
+  .link-draw::after {
+    content: "";
+    position: absolute;
+    left: var(--u-inset, 0.75rem);
+    right: var(--u-inset, 0.75rem);
+    bottom: var(--u-bottom, 0.55rem);
+    height: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 280ms var(--ease-out-strong);
+  }
+  .link-draw {
+    position: relative;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .nav-link:hover::after,
+    .link-draw:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+
+  /* Team portrait: a mint scanline sweeps the monogram grid on hover */
+  .scan-hover {
+    position: relative;
+  }
+  .scan-hover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 0, rgb(0 229 130 / 0.5) 48%, transparent 52%);
+    background-size: 100% 220%;
+    background-position: 0 -120%;
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .group:hover .scan-hover::after {
+      opacity: 1;
+      animation: scan-sweep 1.1s steps(11) infinite;
+    }
+  }
+}
+
+/* Preloader is skipped on repeat visits within a session (flag set before paint) */
+html[data-seen="1"] .preloader {
+  display: none;
+}
+
+@keyframes scan-sweep {
+  to {
+    background-position: 0 120%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader {
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
