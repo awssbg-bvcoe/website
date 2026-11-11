@@ -90,7 +90,8 @@ export function Nav() {
         <Lockup
           compact
           iconClassName="text-mint transition-transform duration-300 ease-out-strong group-hover:rotate-90"
-          className="max-sm:[&>span:last-child]:sr-only"
+          textClassName="max-sm:sr-only"
+          awsClassName="max-sm:hidden"
         />
       </a>
 

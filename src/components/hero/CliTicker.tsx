@@ -3,14 +3,15 @@
 import { useRef } from "react";
 import { gsap, useGSAP, whenIntroDone } from "@/lib/gsap";
 
+// Keep each command at 30 characters or fewer: the sticker is a fixed width (min(22rem, 80vw)).
 const COMMANDS = [
   "aws configure",
   "sam init --runtime python3.13",
   "sam deploy --guided",
   "cdk bootstrap",
   "cdk deploy --all",
-  "aws s3 sync ./site s3://builders-bvcoe",
-  "aws lambda invoke --function-name hello out.json",
+  "aws s3 sync ./site s3://bvcoe",
+  "aws lambda list-functions",
 ];
 
 /** Small sticker that types real AWS CLI commands, one after another. */

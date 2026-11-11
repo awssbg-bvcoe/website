@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRef } from "react";
+import { BrandIcon } from "@/components/brand/BrandIcon";
 import { CliTicker } from "@/components/hero/CliTicker";
 import { PixelRain } from "@/components/hero/PixelRain";
 import { Stickers } from "@/components/hero/Stickers";
@@ -294,6 +295,12 @@ export function Hero() {
       <PixelRain className="opacity-55" />
 
 
+      {/* Phones: no room for the AWS logo in the nav, so it sits above the headline */}
+      <div data-hero-fade className="relative z-[5] mb-6 flex items-center gap-3 text-paper sm:hidden">
+        <BrandIcon name="aws" size={26} label="AWS" />
+        <span aria-hidden="true" className="block h-6 w-px bg-paper/30" />
+        <span className="font-mono text-xs leading-tight text-grey-300">Student Builder Group</span>
+      </div>
       <h1 id="hero-title" data-hero-type className="pointer-events-none relative z-[5] font-mono text-display font-bold uppercase">
         <span className="sr-only">Learn. Build. Deploy. Scale.</span>
         <span aria-hidden="true">

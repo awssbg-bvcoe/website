@@ -89,6 +89,7 @@ CLAUDE.md                      imports AGENTS.md for Claude Code
 next.config.ts                 cacheComponents, partialPrefetching, Tailwind turbopack loader
 public/brand/icons/*.svg       11 brand-kit icons (white set, verified by shape, see 6.3)
 public/brand/mark/chip.svg     program icon (the "chip"), white
+public/brand/mark/aws.svg      AWS logo (smile), vector from the official SBG presentation template (ppt/media/image9.svg)
 db/migrations/*.sql            plain SQL migrations, applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
 scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
 src/proxy.ts                   short-link redirects (/{slug} -> 307) + click recording via waitUntil; cookie gate for /admin
@@ -204,7 +205,8 @@ Mint is the one accent. Purple, amber, blue and magenta appear only as solid "br
 - Available: `bolt, clock, double-bracket-smile, drop, key, ladder, single-bracket-smile, speaker, teams, trophy, wrench` and the program icon `chip`.
 - **Kit quirk (G3):** about half the files in `Additional Icons/SVG` carry the wrong name (a systematic naming shift). Colour in the filename is also unreliable. Files were grouped by path hash to find true shapes. The `_White` set is correct **except** `Trophy_White.svg`, which is a wrench; the real trophy is the shape found in `Trophy_Mint.svg` (viewBox 3870x3870). Always check an icon visually before adding it.
 - **Kit quirk (G4):** `Brandmarks/Alternate (Without AWS)` contains a personal photo, not a logo. Do not use it. Primary brandmark SVG fills also do not match their filenames.
-- The lockup is rebuilt in code (chip + "AWS Student Builder Group" / "at BVCOE, New Delhi" in Ember Mono) so it stays live text.
+- The lockup is rebuilt in code (chip + "AWS Student Builder Group" / "at BVCOE, New Delhi" in Ember Mono) so it stays live text. It ends with a thin divider and the **AWS logo** (`BrandIcon name="aws"`, accessible name "AWS"), as on the kit's banner. `Lockup` props: `aws` (default true), `awsClassName`, `textClassName`. The nav hides the wordmark text (`textClassName="max-sm:sr-only"`) and the AWS group (`awsClassName="max-sm:hidden"`) below 640px because the phone nav has no room; on phones the hero shows the AWS logo + "Student Builder Group" above the headline instead (`sm:hidden`). The footer lockup shows it from `sm`.
+- The AWS logo is official artwork: never redraw or recolour it beyond single-colour (it renders as a mask in `currentColor`: paper on dark, mint-ink on the mint footer). The SVG came from `Presentation Template/AWS_StudentBuilderGroups_PPTTemplate_Final .pptx` > `ppt/media/` (the 300.73x179.82 files are the AWS logo in several colours).
 - No hand-drawn SVG icons and no third-party icon sets.
 
 ### 6.4 Shape, theme and copy rules
@@ -291,7 +293,7 @@ Layers and behaviour:
 | Headline | `Hero` | SplitText chars (`aria: "none"`, an `sr-only` copy carries the accessible name) drop in from random order. After the intro the mask wrappers get `overflow: visible` so letters can move. Glitch loop: a random char scrambles and flashes amber/magenta/blue/paper every 0.25 to 1.1s. Row hover scrambles the row. Fine pointer: chars within 220px push away (`y` up to 70px, `rotation` up to 18°) via a ticker. | Plain static text |
 | Stickers | `Stickers` | 8 tiles (4 also on mobile with separate `mobile` coords). Burst from hero centre with random spin, then infinite sine float. Fine pointer: depth parallax, Draggable with inertia inside hero bounds, click spins the drag layer 360°. | Static, placed |
 | Chip card | `ChipScene` | See 10. Click sets `progress.kick` for a big rebuild. Mint hard shadow. | Single rendered frame |
-| CLI sticker | `CliTicker` | Types 7 real AWS CLI commands in a loop with `steps()` eases. Desktop only. | Shows one static command |
+| CLI sticker | `CliTicker` | Types 7 real AWS CLI commands in a loop with `steps()` eases. Desktop only. The sticker is a fixed `min(22rem, 80vw)` wide, so every command must be 30 characters or fewer (longest today: 29, ending 260px into the 352px box); change the string, never the box. | Shows one static command |
 | CTAs | `Hero` | `[data-magnet]` pull toward the cursor (strength 0.35). | No pull |
 
 Every tween in the pinned timeline is a `fromTo` with explicit start values and `immediateRender: false` (G13). The timeline is built while the intro still holds tapes, CLI, subtext and card hidden; a plain `.to()` records that hidden state as its start, so scrolling back to the top hid them again (user-reported bug, fixed).
@@ -469,6 +471,21 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: CLI sticker commands shortened so they never bleed
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user (screenshot of `aws lambda invoke --function-name hello out.json` running past the sticker): "this bleeds as well.. change the string don't make the box bigger".
+- Files changed: `src/components/hero/CliTicker.tsx` (`aws lambda invoke --function-name hello out.json` to `aws lambda list-functions`; `aws s3 sync ./site s3://builders-bvcoe` to `aws s3 sync ./site s3://bvcoe`; comment stating the 30-character limit).
+- Verified (production build, 1440x900): with each long command set, the cursor ends 260px into the 352px sticker (the old Lambda line reached 398px).
+
+#### 2026-11-11: AWS logo added to the lockup and the phone hero
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in the aws logo as well in the navbar/landing page or hero section or somewhere"; the user also sent a raster of the logo. The vector from the official SBG presentation template was used instead (same mark, crisp at any size).
+- Files added: `public/brand/mark/aws.svg`.
+- Files changed: `src/components/brand/BrandIcon.tsx` (`aws` name, ratio 300.73/179.82, served from `/brand/mark/`); `src/components/brand/Lockup.tsx` (divider + AWS logo; `aws`, `awsClassName`, `textClassName` props); `src/components/sections/Nav.tsx` (uses `textClassName`/`awsClassName` instead of the old `[&>span:last-child]` selector, which would now have hidden the logo); `src/components/sections/Hero.tsx` (phone-only AWS row above the `h1`, part of `[data-hero-fade]`); `src/components/hero/Stickers.tsx` (bolt mobile position y 22% to 31% so it clears the headline after the row pushed it down).
+- Bug found and fixed during the work: with the logo in the phone nav, the nav ran to 415px on a 375px viewport and cut off "Join"; the logo moved to the hero on phones.
+- Verified (production build): 390x844 nav ends at 359px, no horizontal overflow, AWS logo visible in the hero, bolt sticker top 254px vs headline bottom 229px; 640px nav fits with full lockup + logo (ends at 593 of 625); 1440x900 screenshot shows the lockup with divider and logo, logo also in the footer; axe 0 violations in header, hero and footer.
+- Not verified: 768px visually; the admin/404 lockups (same component, logo shown).
 
 #### 2026-11-11: Gentler smooth scrolling for nav and in-page links
 - Agent/tool: Claude Code (Claude Opus 5.5)

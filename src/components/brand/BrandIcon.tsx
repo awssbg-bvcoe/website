@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { BrandIconName } from "@/content/site";
 
-const ratios: Record<BrandIconName | "chip", number> = {
+const ratios: Record<BrandIconName | "chip" | "aws", number> = {
   bolt: 2580 / 3870,
   clock: 1,
   "double-bracket-smile": 5160 / 3012,
@@ -14,6 +14,7 @@ const ratios: Record<BrandIconName | "chip", number> = {
   trophy: 1,
   wrench: 5590 / 2580,
   chip: 1,
+  aws: 300.73 / 179.82,
 };
 
 /**
@@ -26,12 +27,13 @@ export function BrandIcon({
   className = "",
   label,
 }: {
-  name: BrandIconName | "chip";
+  name: BrandIconName | "chip" | "aws";
   size?: number;
   className?: string;
   label?: string;
 }) {
-  const src = name === "chip" ? "/brand/mark/chip.svg" : `/brand/icons/${name}.svg`;
+  // chip = the program icon; aws = the AWS logo from the official SBG presentation template
+  const src = name === "chip" || name === "aws" ? `/brand/mark/${name}.svg` : `/brand/icons/${name}.svg`;
   const style = {
     "--icon": `url("${src}")`,
     height: size,

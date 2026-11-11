@@ -18,7 +18,7 @@ type Sticker = {
 };
 
 const STICKERS: Sticker[] = [
-  { icon: "bolt", x: 50, y: 3, size: 76, rotate: 12, depth: 40, tone: "bg-amber text-grey-850", mobile: { x: 80, y: 22 } },
+  { icon: "bolt", x: 50, y: 3, size: 76, rotate: 12, depth: 40, tone: "bg-amber text-grey-850", mobile: { x: 80, y: 31 } },
   { icon: "key", x: 86, y: 15, size: 84, rotate: -10, depth: 26, tone: "bg-purple text-grey-850" },
   { icon: "clock", x: 3, y: 46, size: 70, rotate: -14, depth: 34, tone: "bg-blue text-grey-850", mobile: { x: -4, y: 47 } },
   { icon: "double-bracket-smile", x: 27, y: 50, size: 92, rotate: 8, depth: 18, tone: "bg-mint text-mint-ink" },
