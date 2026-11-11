@@ -28,6 +28,7 @@ export const nav = [
   { label: "About", href: "#about" },
   { label: "Programs", href: "#programs" },
   { label: "Team", href: "#team" },
+  { label: "Partner", href: "#partner" },
 ] as const;
 
 export type BrandIconName =

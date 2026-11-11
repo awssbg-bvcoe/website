@@ -91,7 +91,7 @@ export function Partner() {
             </div>
 
             <div className="px-6 pt-4 pb-7 sm:px-8 sm:pb-8">
-              <div aria-hidden="true" className="relative flex h-12 items-stretch gap-[3px] overflow-hidden">
+              <div aria-hidden="true" className="relative mx-auto flex h-12 w-fit max-w-full items-stretch gap-[3px] overflow-hidden">
                 {BARS.map((w, i) => (
                   <span key={i} data-pass-bar className="block origin-bottom bg-mint-ink" style={{ width: w * 3 }} />
                 ))}
