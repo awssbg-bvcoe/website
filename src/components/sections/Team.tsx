@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRef } from "react";
 import { BrandIcon } from "@/components/brand/BrandIcon";
 import { team, type TeamMember } from "@/content/team";
-import { Draggable, gsap, useGSAP } from "@/lib/gsap";
+import { Draggable, gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 
 const tones: Record<TeamMember["tone"], string> = {
   mint: "bg-mint text-mint-ink",
@@ -137,8 +137,11 @@ export function Team() {
         });
       });
 
-      // Mobile: pin the board and turn vertical scroll into a sideways pass through every card
+      // Mobile: hold the board on screen and turn vertical scroll into a sideways pass through every card.
+      // The hold is CSS sticky inside a tall rail, not a ScrollTrigger pin: phones run momentum scrolling
+      // on the compositor, and a JS pin switched to fixed a frame late, so the board jumped and bounced.
       mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
+        const rail = root.current!.querySelector<HTMLElement>("[data-board-rail]")!;
         const board = root.current!.querySelector<HTMLElement>("[data-board]")!;
         const track = root.current!.querySelector<HTMLElement>("[data-track]")!;
         const bar = root.current!.querySelector<HTMLElement>("[data-team-progress]")!;
@@ -152,18 +155,26 @@ export function Team() {
           const padRight = parseFloat(getComputedStyle(track).paddingRight) || 0;
           return Math.max(0, last.offsetLeft + last.offsetWidth + padRight - track.clientWidth);
         };
+        // Centre the board when it fits, otherwise hold it from the top
+        const stickyTop = () => Math.max(0, (window.innerHeight - board.offsetHeight) / 2);
+
+        // Rail = board height + pan distance, so the sticky board stays put for exactly the pan
+        const layout = () => {
+          gsap.set(board, { position: "sticky", top: stickyTop() });
+          gsap.set(rail, { height: board.offsetHeight + distance() });
+        };
+        layout();
+        ScrollTrigger.addEventListener("refreshInit", layout);
 
         const pan = gsap.to(track, {
           x: () => -distance(),
           ease: "none",
           scrollTrigger: {
-            trigger: board,
-            // Centre the board when it fits, otherwise pin from the top
-            start: () => (board.offsetHeight < window.innerHeight ? "center center" : "top top"),
+            trigger: rail,
+            start: () => `top top+=${stickyTop()}`,
             end: () => `+=${distance()}`,
-            pin: true,
-            scrub: 0.5,
-            anticipatePin: 1,
+            // 1:1 with the finger: a lagged scrub kept sliding after a fling stopped and read as rubber banding
+            scrub: true,
             invalidateOnRefresh: true,
             onUpdate: (self) => gsap.set(bar, { scaleX: self.progress }),
           },
@@ -179,6 +190,8 @@ export function Team() {
             .fromTo(card, { rotate: 6, scale: 0.94 }, { rotate: 0, scale: 1 })
             .to(card, { rotate: -6, scale: 0.94 });
         });
+
+        return () => ScrollTrigger.removeEventListener("refreshInit", layout);
       });
 
       return () => mm.revert();
@@ -197,9 +210,11 @@ export function Team() {
         Six students running workshops, partnerships, design and operations for the group this term.
       </p>
 
+      {/* Mobile: the rail is made tall and the board sticks inside it during the sideways pass */}
+      <div data-board-rail className="mt-14">
       <div
         data-board
-        className="bg-pixel-grid relative mt-14 overflow-hidden bg-grey-800 lg:h-[58rem] lg:overflow-hidden lg:outline lg:outline-1 lg:outline-grey-700"
+        className="bg-pixel-grid relative overflow-hidden bg-grey-800 lg:h-[58rem] lg:overflow-hidden lg:outline lg:outline-1 lg:outline-grey-700"
       >
         <p className="absolute right-6 bottom-5 hidden items-center gap-2 font-mono text-sm text-grey-300 lg:flex">
           <BrandIcon name="double-bracket-smile" size={14} className="text-mint" />
@@ -228,6 +243,7 @@ export function Team() {
             </li>
           ))}
         </ul>
+      </div>
       </div>
     </section>
   );
