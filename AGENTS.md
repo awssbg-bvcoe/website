@@ -158,7 +158,7 @@ Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#progr
 | About | Pixel bento (mirrors brand banner) + LED ticker | See 9.5 | `stats` in `site.ts` |
 | Programs | Sticky stack | Cards pin at `top top`, land with a ±5° tilt, earlier card scales to 0.92 and darkens via a shade layer (never opacity on the card) | `programs` in `site.ts` |
 | Team | Draggable board / mobile pinned horizontal pan | Desktop: absolute spots with rotations (`spots` array), Draggable with inertia and bounds. Mobile (<1024px): board pins and vertical scroll pans through every card, then releases (see 9.5). Reduced motion on mobile: native horizontal scroll-snap, focusable (`tabIndex=0`) | `team.ts` |
-| Advisor | Split: tilted paper-framed 4:5 portrait with a "Faculty Advisor" stamp, then label h2, big mono name, role, bio and three credential tiles | Frame lands from a tilt, photo wipes up in 10 steps (`clip-path`), stamp snaps in, name scrambles, tiles switch on in steps; scanline on portrait hover. Resting tilt lives on a wrapper and the tile hover on an inner div so neither fights GSAP (G19) | `advisor` in `team.ts` |
+| Advisor | Split (portrait 4 cols, text 8 cols on `lg`): tilted paper-framed 4:5 portrait, capped at 15rem phones / 17rem `sm` / 21rem `lg` (user asked for it smaller), with a "Faculty Advisor" stamp, then label h2, big mono name, role, bio and three credential tiles | Frame lands from a tilt, photo wipes up in 10 steps (`clip-path`), mint pixel corner brackets and stamp snap in, three credential stickers (trophy amber, bolt mint, speaker blue) pop in, float and follow the pointer at different depths, name scrambles, tiles switch on in steps. After the intro: a random name letter glitches in a brand colour every 0.9 to 2.2s (SplitText `words,chars`, G20), a mint outline walks across the credential tiles with an icon pulse, tile icons step 90° on hover. A ghost program icon (460px, `grey-800`) turns in 90° CSS steps behind the portrait; portrait and ghost drift against each other on scroll. Resting tilts live on wrappers (frame wrapper, sticker float wrapper via CSS `rotate`) and the tile hover on an inner div so nothing fights GSAP (G19). Reduced motion: all static | `advisor` in `team.ts` |
 | Join | Big type + perks list + paper card | Char reveal, card rises with tilt | `site.joinUrl` |
 | Footer | Mint block + marquee | GSAP marquee (static under reduced motion); pills for Builder Center, Instagram, LinkedIn; "Made with <3 by Samyak Jain" linking to GitHub | `site.programUrl`, `site.socials`, `site.maker` |
 
@@ -476,6 +476,20 @@ Template:
 
 ### 17.2 Entries
 
+#### 2026-11-11: Faculty advisor section given more motion
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in some bling here as well" (the faculty advisor section).
+- Files changed: `src/components/sections/Advisor.tsx` (rewritten; details in section 5: corner brackets, credential stickers with float + pointer parallax, ghost chip, scroll drift, name glitch loop, walking tile highlight, hover icon step).
+- Bug found and fixed during the work: the name broke mid-word ("Pu / ri") on phones once split into chars; now split into words and chars (G20).
+- Verified (production build): 1440x900 screenshot shows stickers, corners, ghost chip and the tile highlight; axe 0 violations on `#advisor`; console clean; 390x844 no horizontal overflow, name lines "Dr. Yugnanda" / "Puri".
+- Not verified: 768px, reduced-motion visual pass.
+
+#### 2026-11-11: Faculty advisor portrait made smaller
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "the image is too big of the faculty advisor, reduce size both on mobile and on desktop".
+- Files changed: `src/components/sections/Advisor.tsx` (portrait wrapper `max-w-[15rem] sm:max-w-[17rem] lg:max-w-[21rem]`, left-aligned with `ml-2`/`lg:ml-4`; grid 4/8 instead of 5/7; image `sizes` updated).
+- Verified (production build): photo 332x406 at 1440x900 (was about 560 wide; the name now fits one line) and 230x281 at 390x844 (was about 343 wide); no horizontal overflow; screenshots at both.
+
 #### 2026-11-11: Faculty advisor section
 - Agent/tool: Claude Code (Claude Opus 5.5)
 - Requested by user: "there is a faculty advisor section in optica website, dr. puri is the faculty advisor for this club as well, add in everything from there to here following the design guidelines in here, a separate section in/after team for her". Mid-task: "remove founded bvp optica".
@@ -690,4 +704,5 @@ Template:
 | G17 | A WebGL canvas inside a CSS-scaled element renders at layout size and looks blurry when scaled up | Hero end state |
 | G18 | ScrollTriggers created before later pinned sections are measured without their pin spacers; use `refreshPriority: -1` for triggers that depend on later pins | Nav section marker |
 | G19 | A CSS `transition` on `transform` (e.g. Tailwind `transition-transform`) on an element GSAP is tweening can freeze the tween's end state | Join perk rows stuck at x -24px |
+| G20 | SplitText `type: "chars"` alone lets a line wrap between any two letters ("Pu / ri"); use `"words,chars"` when the text can wrap | Advisor name on phones |
 | G14 | SplitText (`autoSplit`) re-splitting an element whose nested child is being scrambled duplicated the child's text ("AWS.AWS.") | About title |
