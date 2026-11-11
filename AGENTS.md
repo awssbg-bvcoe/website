@@ -378,7 +378,7 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 ## 13. SEO, metadata and OG images
 
 - Metadata in `layout.tsx`: title template `%s | AWS SBG BVCOE`, description, canonical `/`, author/creator (Samyak Jain), keywords, full `openGraph` (title, description, url, site_name, type, locale) and `twitter` (`summary_large_image`, title, description). `og:image` / `twitter:image` with type, width, height and alt are emitted by the `opengraph-image.tsx` / `twitter-image.tsx` file conventions. `metadataBase` = `site.url` = `NEXT_PUBLIC_SITE_URL`, else `https://$VERCEL_PROJECT_PRODUCTION_URL` (Vercel system env), else localhost, so share images are always absolute https on Vercel (WhatsApp and Discord need that). `theme-color` is mint `#00e582`: Discord uses it for the embed side bar (it also tints mobile browser chrome).
-- `renderOg({ lines, kicker, accent, footer })` in `src/lib/og.tsx` produces the 1200x630 card: pixel grid at 70px, stepped brand blocks in the accent colour, a tilted 9x9 pixel chip, Ember Mono headline (second line in accent) and the lockup footer. Every new route should add an `opengraph-image.tsx` that calls it (the planned link shortener should use it per slug). `twitter-image.tsx` re-exports.
+- `renderOg({ lines, kicker, accent, footer })` in `src/lib/og.tsx` produces the 1200x630 card: pixel grid at 70px, stepped brand blocks in the accent colour, a tilted 9x9 pixel chip, Ember Mono headline (second line in accent) and the lockup footer. The top row is the AWS logo (52px high, read from `public/brand/mark/aws.svg`, its template `<style>`/class stripped and the fill set to paper, passed as a base64 data URI `<img>`), a thin divider, then the kicker. Every card from `renderOg` carries it. Every new route should add an `opengraph-image.tsx` that calls it (the planned link shortener should use it per slug). `twitter-image.tsx` re-exports.
 - Satori rules: every element needs `display: flex` when it has children; fonts must be TTF/OTF/WOFF (not woff2), read with `readFile(join(process.cwd(), "src/assets/og/..."))`.
 
 ---
@@ -480,6 +480,13 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: AWS logo on the Open Graph images
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in aws logo in all opengraph images as well".
+- Files changed: `src/lib/og.tsx` (`awsLogo()` loads the official SVG, strips the template stylesheet and class, sets the fill to paper and returns a data URI; top row is now logo, divider, kicker). All OG/Twitter images go through `renderOg`, so every route gets it (today `opengraph-image.tsx` and `twitter-image.tsx` at the root, inherited by all pages).
+- Bug found and fixed during the work: the first render drew the logo almost invisible because the SVG's `MsftOfcThm_Text1_Fill_v2` class (fill `#151D25`) overrode the `fill` attribute; in the footer position it also sat on the amber block, so it moved to the top row.
+- Verified (production build): `/opengraph-image` and `/twitter-image` 200 image/png, 72 KB; render checked visually (logo white, clear of blocks and chip); lint and build clean.
 
 #### 2026-11-11: Tanisha's photo replaced
 - Agent/tool: Claude Code (Claude Opus 5.5)

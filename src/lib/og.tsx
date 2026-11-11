@@ -44,6 +44,19 @@ async function fonts() {
   ];
 }
 
+/** AWS logo from the official SBG template, recoloured single-colour paper (never redrawn). */
+async function awsLogo() {
+  const svg = await readFile(join(process.cwd(), "public/brand/mark/aws.svg"), "utf8");
+  // Drop the template's theme stylesheet and class (its fill overrides attributes), then set one fill
+  const paper = svg
+    .replace(/<style>[\s\S]*?<\/style>/g, "")
+    .replace(/\sclass="[^"]*"/g, "")
+    .replace(/fill="#[0-9A-Fa-f]{6}"/g, `fill="${C.paper}"`);
+  return `data:image/svg+xml;base64,${Buffer.from(paper).toString("base64")}`;
+}
+
+const AWS_RATIO = 300.73 / 179.82;
+
 /**
  * Shared Open Graph card: brand pixel grid, a stepped block staircase in the
  * route's accent, a big pixel chip and mono display type.
@@ -66,6 +79,8 @@ export async function renderOg({
   const size = Math.min(104, Math.floor(640 / (longest * 0.62)));
   const chip = chipCells();
   const px = 26;
+  const [fontData, aws] = await Promise.all([fonts(), awsLogo()]);
+  const awsH = 52;
 
   // Stepped blocks (cols, rows in grid units) echoing the kit's banner/backgrounds
   const blocks: { c: number; r: number; w: number; h: number; color: string }[] = [
@@ -137,7 +152,11 @@ export async function renderOg({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px", width: "100%" }}>
+          {/* Top row: AWS logo, thin divider, kicker (logo first, as on the kit banner) */}
           <div style={{ display: "flex", alignItems: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={aws} alt="AWS" width={Math.round(awsH * AWS_RATIO)} height={awsH} style={{ display: "flex" }} />
+            <div style={{ display: "flex", width: 2, height: 48, backgroundColor: C.grey, opacity: 0.5, marginLeft: 26, marginRight: 26 }} />
             <div style={{ display: "flex", backgroundColor: a, color: C.ink, padding: "8px 14px", fontSize: 22, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
               {kicker}
             </div>
@@ -160,6 +179,6 @@ export async function renderOg({
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts: await fonts() },
+    { ...OG_SIZE, fonts: fontData },
   );
 }
