@@ -6,11 +6,12 @@ import { Lockup } from "@/components/brand/Lockup";
 import { BrandIcon } from "@/components/brand/BrandIcon";
 import { site } from "@/content/site";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
+import { durationFor, easeInOutCubic } from "@/lib/scroll";
 
 const MARQUEE = "Learn. Build. Deploy. Scale.";
 
 function toTop() {
-  if (window.__lenis) window.__lenis.scrollTo(0, { duration: 1.4 });
+  if (window.__lenis) window.__lenis.scrollTo(0, { duration: durationFor(window.scrollY), easing: easeInOutCubic });
   else window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

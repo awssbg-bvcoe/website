@@ -278,7 +278,7 @@ Legal line in the footer: "AWS Student Builder Groups exist exclusively for educ
 
 ### 9.3 Lenis
 
-`new Lenis({ lerp: 0.1, autoRaf: false, anchors: { offset: 0 } })`, `lenis.on("scroll", ScrollTrigger.update)`, `gsap.ticker.add(t => lenis.raf(t * 1000))`, `lagSmoothing(0)`. Exposed as `window.__lenis` for `scrollTo` (footer back-to-top, verification scripts). Elements with `data-lenis-prevent` opt out.
+`new Lenis({ lerp: 0.1, autoRaf: false, anchors: false })`, `lenis.on("scroll", ScrollTrigger.update)`, `gsap.ticker.add(t => lenis.raf(t * 1000))`, `lagSmoothing(0)`. Exposed as `window.__lenis` for `scrollTo` (footer back-to-top, verification scripts). In-page `#section` links are handled by one document click listener in `SmoothScroll.tsx` (Lenis's own `anchors` option is off because it rushed long jumps through the pinned sections): `lenis.scrollTo(target, { duration: durationFor(distance), easing: easeInOutCubic })` from `src/lib/scroll.ts` (duration 0.9s + distance/3200, clamped 1.1 to 2.4s), then focus moves to the section (`tabindex=-1`, `preventScroll`) and the hash is pushed to history. Modifier clicks keep browser behaviour; user scrolling interrupts the glide; under reduced motion Lenis is not created and links jump natively. The footer back-to-top uses the same helpers. Elements with `data-lenis-prevent` opt out.
 
 ### 9.4 Hero (most complex area)
 
@@ -469,6 +469,14 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Gentler smooth scrolling for nav and in-page links
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in smooth scrolling after clicking on the navbar buttons, not aggressive scrolling as it does right now".
+- Files added: `src/lib/scroll.ts` (`easeInOutCubic`, `durationFor`).
+- Files changed: `src/components/motion/SmoothScroll.tsx` (Lenis `anchors: false`; document-level handler for `a[href^="#"]` as described in 9.3); `src/components/sections/Footer.tsx` (back-to-top uses the same easing and duration).
+- Verified (production build, 1440x900): clicking Team from the top moved 0 to 7272px along an ease-in-out curve (2px at 90ms, 1190px at 826ms, 6912px at 1844ms) and settled at 2.3s exactly on the section; URL became `#team`; focus moved to `#team`.
+- Not verified: touch devices (Lenis does not smooth native touch scrolling, but the programmatic glide applies there too), Safari.
 
 #### 2026-11-11: Tanisha's photo
 - Agent/tool: Claude Code (Claude Opus 5.5)
