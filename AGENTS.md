@@ -243,7 +243,7 @@ Core team (decided with the user: use the **appointment letter titles**, not the
 | Pakhshi Luthra | Treasurer | Treasurer |
 | Arya Bhardwaj | General Secretary | General Secretary |
 
-Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the card's 4:3 frame), cropped waist-up with the face at about 38% height, JPEG q82 progressive, all EXIF/GPS metadata stripped. All six members have photos (Tanisha's source was 526px square, so hers is 526x394, never upscaled). The pixel monogram remains the fallback for any future member without a photo. To add or replace one: crop to 4:3 the same way, strip metadata, save under `public/team/`, set `photo` in `team.ts`.
+Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the card's 4:3 frame), cropped waist-up with the face at about 38% height, JPEG q82 progressive, all EXIF/GPS metadata stripped. All six members have photos (Tanisha's was replaced on 2026-11-11 with a 3024x4032 original, now 960x720 like the rest). The pixel monogram remains the fallback for any future member without a photo. To add or replace one: crop to 4:3 the same way, strip metadata, save under `public/team/`, set `photo` in `team.ts`.
 
 Card order (array order in `team.ts`, user-specified; it drives both the mobile pass and the desktop board spots): Samyak, Arya, Pakhshi, Chetna, Tanisha, Aamir. On desktop that keeps Arya next to Samyak and Aamir in the bottom-right spot. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
 
@@ -480,6 +480,12 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Tanisha's photo replaced
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "crop and update the picture for tanisha" (new 3024x4032 photo).
+- Files changed: `public/team/tanisha-kaur.jpg` (crop 1600x1200 from (558,1431) of the original, face at about 37% height, resized to 960x720, JPEG q82 progressive, no EXIF, 66 KB; same path, so `team.ts` unchanged).
+- Verified: crop checked visually; EXIF empty.
 
 #### 2026-11-11: Partner link in the nav, mobile menu, centred barcode
 - Agent/tool: Claude Code (Claude Opus 5.5)
