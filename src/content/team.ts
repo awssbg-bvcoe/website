@@ -22,7 +22,7 @@ export const team: TeamMember[] = [
     name: "Arya Bhardwaj",
     photo: "/team/arya-bhardwaj.jpg",
     role: "General Secretary",
-    focus: "Keeps meeting minutes, coordinates the team and handles official communication.",
+    focus: "Runs the group. Knows it all before you ask.",
     tone: "purple",
   },
   {
