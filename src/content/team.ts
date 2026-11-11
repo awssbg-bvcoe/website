@@ -54,3 +54,26 @@ export const team: TeamMember[] = [
     tone: "paper",
   },
 ];
+
+export type Advisor = {
+  name: string;
+  role: string;
+  roleDetail: string;
+  bio: string;
+  photo: string;
+  credentials: { label: string; icon: "trophy" | "bolt" | "speaker" | "key"; tone: "amber" | "mint" | "blue" | "purple" }[];
+};
+
+/** Faculty advisor. Credentials carried over from the BVP Optica site (same person); nothing Optica-specific is shown. */
+export const advisor: Advisor = {
+  name: "Dr. Yugnanda Puri",
+  role: "President, Institute Innovation Cell",
+  roleDetail: "IIC (AICTE, Ministry of Education)",
+  bio: "Dr. Puri guides the group. As Dean of R&D and President of the Institute Innovation Cell, she champions research and innovation across BVCOE.",
+  photo: "/team/yugnanda-puri.jpg",
+  credentials: [
+    { label: "Ph.D. in Optical Communication", icon: "trophy", tone: "amber" },
+    { label: "Dean of R&D", icon: "bolt", tone: "mint" },
+    { label: "Associate Professor", icon: "speaker", tone: "blue" },
+  ],
+};

@@ -1,4 +1,5 @@
 import { About } from "@/components/sections/About";
+import { Advisor } from "@/components/sections/Advisor";
 import { Footer } from "@/components/sections/Footer";
 import { Hero } from "@/components/sections/Hero";
 import { Join } from "@/components/sections/Join";
@@ -15,6 +16,7 @@ export default function Home() {
         <About />
         <Programs />
         <Team />
+        <Advisor />
         <Join />
       </main>
       <Footer />

@@ -96,7 +96,7 @@ src/proxy.ts                   short-link redirects (/{slug} -> 307) + click rec
 src/app/
   layout.tsx                   root: fonts (next/font/local), metadata, skip link, seen-session inline script
   (site)/layout.tsx            public site only: Preloader, SmoothScroll, PixelTrail (admin and 404 skip them)
-  (site)/page.tsx              Nav + main(Hero, About, Programs, Team, Join) + Footer
+  (site)/page.tsx              Nav + main(Hero, About, Programs, Team, Advisor, Join) + Footer
   admin/                       links admin: layout (noindex), page (dashboard), login/, links/[id]/ (stats, QR, edit, delete), actions.ts (server actions)
   api/auth/github|callback|logout   hand-written GitHub OAuth (state cookie, allowlist, DB sessions)
   api/admin/qr/[slug]          SVG QR download (admin only)
@@ -140,6 +140,7 @@ src/components/
   sections/About.tsx           pixel bento with stats
   sections/Programs.tsx        sticky stacking cards
   sections/Team.tsx            draggable team board (desktop), snap scroller (mobile)
+  sections/Advisor.tsx         faculty advisor: tilted portrait + stamp, scrambled name, role, bio, credential tiles
   sections/Join.tsx            "Build with us" + join card
   sections/Footer.tsx          mint footer, marquee, legal line, 404 game link
   game/PacketGame.tsx          canvas snake-style game with keyboard, swipe and d-pad
@@ -149,7 +150,7 @@ src/components/
 
 ## 5. Page structure and section contracts
 
-Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#programs`) > Team (`#team`) > Join (`#join`) > Footer.
+Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#programs`) > Team (`#team`) > Advisor (`#advisor`, not in the nav) > Join (`#join`) > Footer.
 
 | Section | Layout family | Key behaviour | Content source |
 |---|---|---|---|
@@ -157,6 +158,7 @@ Order on `/`: Nav (fixed) > Hero (`#top`) > About (`#about`) > Programs (`#progr
 | About | Pixel bento (mirrors brand banner) + LED ticker | See 9.5 | `stats` in `site.ts` |
 | Programs | Sticky stack | Cards pin at `top top`, land with a ±5° tilt, earlier card scales to 0.92 and darkens via a shade layer (never opacity on the card) | `programs` in `site.ts` |
 | Team | Draggable board / mobile pinned horizontal pan | Desktop: absolute spots with rotations (`spots` array), Draggable with inertia and bounds. Mobile (<1024px): board pins and vertical scroll pans through every card, then releases (see 9.5). Reduced motion on mobile: native horizontal scroll-snap, focusable (`tabIndex=0`) | `team.ts` |
+| Advisor | Split: tilted paper-framed 4:5 portrait with a "Faculty Advisor" stamp, then label h2, big mono name, role, bio and three credential tiles | Frame lands from a tilt, photo wipes up in 10 steps (`clip-path`), stamp snaps in, name scrambles, tiles switch on in steps; scanline on portrait hover. Resting tilt lives on a wrapper and the tile hover on an inner div so neither fights GSAP (G19) | `advisor` in `team.ts` |
 | Join | Big type + perks list + paper card | Char reveal, card rises with tilt | `site.joinUrl` |
 | Footer | Mint block + marquee | GSAP marquee (static under reduced motion); pills for Builder Center, Instagram, LinkedIn; "Made with <3 by Samyak Jain" linking to GitHub | `site.programUrl`, `site.socials`, `site.maker` |
 
@@ -242,6 +244,8 @@ Core team (decided with the user: use the **appointment letter titles**, not the
 Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the card's 4:3 frame), cropped waist-up with the face at about 38% height, JPEG q82 progressive, all EXIF/GPS metadata stripped. All six members have photos (Tanisha's source was 526px square, so hers is 526x394, never upscaled). The pixel monogram remains the fallback for any future member without a photo. To add or replace one: crop to 4:3 the same way, strip metadata, save under `public/team/`, set `photo` in `team.ts`.
 
 Card order (array order in `team.ts`, user-specified; it drives both the mobile pass and the desktop board spots): Samyak, Arya, Pakhshi, Chetna, Tanisha, Aamir. On desktop that keeps Arya next to Samyak and Aamir in the bottom-right spot. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
+
+Faculty advisor: **Dr. Yugnanda Puri**. Role "President, Institute Innovation Cell" with "IIC (AICTE, Ministry of Education)"; credentials Ph.D. in Optical Communication, Dean of R&D, Associate Professor. Source: the faculty advisor section of `~/projects/optica-website` (she advises both clubs). By user decision nothing Optica-specific is shown (no "Founded BVP Optica", no Optica bio, no Optica quote; no quote at all until she gives one for this club). Photo `public/team/yugnanda-puri.jpg` (800x1000, 4:5, from the Optica site's `yugnanda_mam.jpg`, metadata stripped).
 
 Legal line in the footer: "AWS Student Builder Groups exist exclusively for educational purposes. Amazon Web Services, AWS and related marks are trademarks of Amazon.com, Inc. or its affiliates." Keep it.
 
@@ -471,6 +475,15 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-11: Faculty advisor section
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "there is a faculty advisor section in optica website, dr. puri is the faculty advisor for this club as well, add in everything from there to here following the design guidelines in here, a separate section in/after team for her". Mid-task: "remove founded bvp optica".
+- Decisions: content ported from `~/projects/optica-website/src/components/home/FacultyAdvisorSection.tsx` (name, IIC role, credentials, photo) and restyled to this site's system; the Optica bio and the Optica-themed quote were not carried over (bio rewritten from the same facts; no quote invented); "Founded BVP Optica in 2019" and the "since 2019" bio line removed at the user's request. Not added to the nav.
+- Files added: `src/components/sections/Advisor.tsx`; `public/team/yugnanda-puri.jpg`.
+- Files changed: `src/content/team.ts` (`Advisor` type and `advisor` data); `src/app/(site)/page.tsx` (section after Team).
+- Verified (production build): 1440x900 screenshot (portrait, stamp, name, role, bio, three tiles in one row); 390x844 screenshot, no horizontal overflow; axe 0 violations on `#advisor`; no Optica wording in the section (only "Optical Communication" in her Ph.D. title).
+- Not verified: 768px, reduced-motion visual pass.
 
 #### 2026-11-11: CLI sticker commands shortened so they never bleed
 - Agent/tool: Claude Code (Claude Opus 5.5)
