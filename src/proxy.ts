@@ -1,7 +1,7 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { findActiveLink, recordClick } from "@/lib/links/repo";
-import { deviceClass, isUsableSlug, referrerHost } from "@/lib/links/validate";
+import { deviceClass, isPreviewBot, isUsableSlug, referrerHost } from "@/lib/links/validate";
 
 /**
  * Short links: /{slug} shows the warp countdown (people) or answers with a 307 (bots) when an active link exists.
@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (!link) return NextResponse.next();
 
   const device = deviceClass(request.headers.get("user-agent"));
+  // (preview crawlers are still recorded as "bot" and left out of every number)
   if (request.method === "GET") {
     // Record after the response is sent; never block or fail the redirect on analytics.
     event.waitUntil(
@@ -44,9 +45,14 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   }
 
   // People get the warp countdown page (rewrite, so the address bar keeps the short link).
-  // Bots, link-preview crawlers (WhatsApp, Discord, ...), HEAD requests and `?direct` get a plain
-  // 307, so previews show the destination and scripts are not slowed down.
-  const direct = request.method !== "GET" || device === "bot" || device === "unknown" || request.nextUrl.searchParams.has("direct");
+  // Link-preview crawlers (WhatsApp, Discord, X, LinkedIn, ...) get the same page: its metadata
+  // carries the link's own share card (/warp/{slug}/opengraph-image). Other bots, scripts, HEAD
+  // requests and `?direct` get a plain 307.
+  const ua = request.headers.get("user-agent");
+  const preview = isPreviewBot(ua);
+  const direct =
+    request.nextUrl.searchParams.has("direct") ||
+    (!preview && (request.method !== "GET" || device === "bot" || device === "unknown"));
   const res = direct ? NextResponse.redirect(link.url, 307) : NextResponse.rewrite(new URL(`/warp/${slug}`, request.url));
   // Every hit must reach us so it is counted and edits apply at once
   res.headers.set("Cache-Control", "private, no-store");

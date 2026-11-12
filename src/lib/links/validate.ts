@@ -20,6 +20,7 @@ export const RESERVED = new Set([
   "apple-icon",
   "llms",
   "warp",
+  "og",
   "favicon",
   "brand",
   "robots",
@@ -39,9 +40,14 @@ export type LinkInput = {
   note: string | null;
   expiresAt: Date | null;
   enabled: boolean;
+  /** /links page card */
+  title: string | null;
+  description: string | null;
+  listed: boolean;
+  featured: boolean;
 };
 
-export type FieldErrors = Partial<Record<"slug" | "url" | "note" | "expiresAt", string>>;
+export type FieldErrors = Partial<Record<"slug" | "url" | "note" | "expiresAt" | "title" | "description", string>>;
 
 export function isUsableSlug(slug: string) {
   return SLUG_RE.test(slug) && !RESERVED.has(slug);
@@ -58,6 +64,10 @@ export function parseLinkInput(form: FormData, siteHost: string | null): { value
   const note = String(form.get("note") ?? "").trim() || null;
   const rawExpiry = String(form.get("expiresAt") ?? "").trim();
   const enabled = form.get("enabled") !== "off";
+  const title = String(form.get("title") ?? "").trim().replace(/\s+/g, " ") || null;
+  const description = String(form.get("description") ?? "").trim().replace(/\s+/g, " ") || null;
+  const listed = form.get("listed") === "on";
+  const featured = form.get("featured") === "on";
 
   if (!SLUG_RE.test(slug)) errors.slug = "Use 1 to 64 lowercase letters, digits or hyphens (no hyphen at the start or end).";
   else if (RESERVED.has(slug)) errors.slug = `"${slug}" is reserved by the site. Pick another.`;
@@ -75,6 +85,9 @@ export function parseLinkInput(form: FormData, siteHost: string | null): { value
   }
 
   if (note && note.length > 280) errors.note = "Keep the note under 280 characters.";
+  if (title && title.length > 80) errors.title = "Keep the title under 80 characters.";
+  else if (listed && !title) errors.title = "Add a title to show this link on /links.";
+  if (description && description.length > 140) errors.description = "Keep the description under 140 characters.";
 
   let expiresAt: Date | null = null;
   if (rawExpiry) {
@@ -85,7 +98,7 @@ export function parseLinkInput(form: FormData, siteHost: string | null): { value
   }
 
   if (Object.keys(errors).length) return { errors };
-  return { value: { slug, url: url!.toString(), note, expiresAt, enabled } };
+  return { value: { slug, url: url!.toString(), note, expiresAt, enabled, title, description, listed, featured: listed && featured } };
 }
 
 /** Coarse device class from a user agent. The UA itself is never stored. */
@@ -106,4 +119,13 @@ export function referrerHost(ref: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Link-preview crawlers (chat apps and social networks). They get the warp page, whose metadata
+ * carries the link's own share card; every other bot or script gets a plain 307.
+ */
+export function isPreviewBot(ua: string | null) {
+  if (!ua) return false;
+  return /facebookexternalhit|facebot|meta-externalagent|twitterbot|whatsapp|telegrambot|discordbot|slackbot|slack-imgproxy|linkedinbot|skypeuripreview|pinterest|redditbot|embedly|iframely|vkshare|snapchat|viber|line-poker|kakaotalk|mastodon|bluesky|google-inspectiontool|googleother|bingpreview|applebot|microsoftpreview|teams/i.test(ua);
 }

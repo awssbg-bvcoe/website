@@ -131,3 +131,18 @@ export async function findIcon(destination: string, pinned?: string | null): Pro
   if (memo.size > 500) memo.delete(memo.keys().next().value!);
   return icon;
 }
+
+/**
+ * The destination icon as a data URI that Satori (OG images) can draw: PNG, JPEG or SVG only.
+ * WebP/ICO icons (Instagram serves WebP) fall back to Google's 128px PNG for the same host.
+ */
+export async function findOgIcon(destination: string, pinned?: string | null): Promise<string | null> {
+  const ok = (i: Icon | null) => i && /^image\/(png|jpeg|svg\+xml)$/.test(i.type);
+  let icon = await findIcon(destination, pinned);
+  if (!ok(icon)) {
+    const host = new URL(destination).hostname;
+    icon = await fetchImage(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`);
+  }
+  if (!icon || !ok(icon)) return null;
+  return `data:${icon.type};base64,${Buffer.from(icon.body).toString("base64")}`;
+}

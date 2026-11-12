@@ -5,7 +5,14 @@ import { PacketGame } from "@/components/game/PacketGame";
 
 export const metadata: Metadata = {
   title: "Page not found",
+  description: "This route never got deployed. Play Packet run, the AWS Student Builder Group's pixel game, while you are here.",
   robots: { index: false },
+  openGraph: {
+    title: "Packet run | AWS SBG BVCOE",
+    description: "This route never got deployed. Collect chips in the pixel game instead.",
+    images: [{ url: "/og/game", width: 1200, height: 630, alt: "Packet run: the AWS Student Builder Group 404 game" }],
+  },
+  twitter: { card: "summary_large_image", images: ["/og/game"] },
 };
 
 export default function NotFound() {

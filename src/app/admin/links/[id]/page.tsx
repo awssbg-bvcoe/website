@@ -41,6 +41,14 @@ async function LinkDetail({ params }: { params: PageProps<"/admin/links/[id]">["
           <h1 className="font-mono text-3xl font-bold tracking-tight break-all sm:text-4xl">/{link.slug}</h1>
           <div className="flex flex-wrap gap-2">
             <CopyButton text={short} label="Copy link" />
+            <a
+              href={`/warp/${link.slug}?preview`}
+              target="_blank"
+              rel="noopener"
+              className="pressable inline-flex h-11 items-center bg-grey-700 px-4 text-sm font-bold uppercase hover:bg-mint hover:text-mint-ink"
+            >
+              Preview warp<span className="sr-only"> (opens in a new tab)</span>
+            </a>
             <form action={toggleLinkAction}>
               <input type="hidden" name="id" value={link.id} />
               <button type="submit" className="pressable inline-flex h-11 items-center border border-grey-500 px-4 text-sm font-bold uppercase hover:border-paper">
@@ -87,7 +95,18 @@ async function LinkDetail({ params }: { params: PageProps<"/admin/links/[id]">["
           </h2>
           <LinkForm
             origin={origin}
-            initial={{ id: link.id, slug: link.slug, url: link.url, note: link.note, expiresAt: toLocalInput(link.expires_at), enabled: link.enabled }}
+            initial={{
+              id: link.id,
+              slug: link.slug,
+              url: link.url,
+              note: link.note,
+              expiresAt: toLocalInput(link.expires_at),
+              enabled: link.enabled,
+              title: link.title,
+              description: link.description,
+              listed: link.listed,
+              featured: link.featured,
+            }}
           />
           <div className="mt-8 border-t border-grey-700 pt-6">
             <DeleteButton id={link.id} slug={link.slug} />

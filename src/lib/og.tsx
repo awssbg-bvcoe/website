@@ -67,11 +67,14 @@ export async function renderOg({
   kicker,
   accent = "mint",
   footer = "AWS Student Builder Group",
+  icon = null,
 }: {
   lines: string[];
   kicker: string;
   accent?: OgAccent;
   footer?: string;
+  /** Destination logo (PNG/JPEG/SVG data URI) shown on a tilted paper tile instead of the pixel chip */
+  icon?: string | null;
 }) {
   const a = C[accent];
   const longest = Math.max(...lines.map((l) => l.length));
@@ -121,35 +124,57 @@ export async function renderOg({
           />
         ))}
 
-        {/* Pixel chip, slightly tilted like the sticker cards on the site */}
-        <div
-          style={{
-            position: "absolute",
-            right: 92,
-            top: 176,
-            width: px * 9 + 48,
-            height: px * 9 + 48,
-            backgroundColor: C.panel,
-            border: `2px solid ${C.line}`,
-            transform: "rotate(-6deg)",
-            display: "flex",
-          }}
-        >
-          {chip.map(([c, r]) => (
-            <div
-              key={`${c}-${r}`}
-              style={{
-                position: "absolute",
-                left: 24 + c * px,
-                top: 24 + r * px,
-                width: px - 2,
-                height: px - 2,
-                backgroundColor: a,
-                display: "flex",
-              }}
-            />
-          ))}
-        </div>
+        {icon ? (
+          /* Destination logo on a paper tile with the accent's hard shadow, tilted like the site's stickers */
+          <div
+            style={{
+              position: "absolute",
+              right: 110,
+              top: 190,
+              width: 250,
+              height: 250,
+              backgroundColor: C.paper,
+              boxShadow: `14px 14px 0 0 ${a}`,
+              transform: "rotate(-6deg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={icon} alt="" width={156} height={156} style={{ objectFit: "contain" }} />
+          </div>
+        ) : (
+          /* Pixel chip, slightly tilted like the sticker cards on the site */
+          <div
+            style={{
+              position: "absolute",
+              right: 92,
+              top: 176,
+              width: px * 9 + 48,
+              height: px * 9 + 48,
+              backgroundColor: C.panel,
+              border: `2px solid ${C.line}`,
+              transform: "rotate(-6deg)",
+              display: "flex",
+            }}
+          >
+            {chip.map(([c, r]) => (
+              <div
+                key={`${c}-${r}`}
+                style={{
+                  position: "absolute",
+                  left: 24 + c * px,
+                  top: 24 + r * px,
+                  width: px - 2,
+                  height: px - 2,
+                  backgroundColor: a,
+                  display: "flex",
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px", width: "100%" }}>
           {/* Top row: AWS logo, thin divider, kicker (logo first, as on the kit banner) */}

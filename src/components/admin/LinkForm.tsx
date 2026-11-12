@@ -3,7 +3,18 @@
 import { useActionState, useEffect, useRef } from "react";
 import { saveLink, type LinkFormState } from "@/app/admin/actions";
 
-type Initial = { id?: number; slug?: string; url?: string; note?: string | null; expiresAt?: string | null; enabled?: boolean };
+type Initial = {
+  id?: number;
+  slug?: string;
+  url?: string;
+  note?: string | null;
+  expiresAt?: string | null;
+  enabled?: boolean;
+  title?: string | null;
+  description?: string | null;
+  listed?: boolean;
+  featured?: boolean;
+};
 
 const field = "h-11 w-full bg-grey-850 px-3 text-paper outline outline-1 outline-grey-500 placeholder:text-grey-500 focus-visible:outline-2 focus-visible:outline-mint";
 
@@ -81,6 +92,45 @@ export function LinkForm({ initial, origin }: { initial?: Initial; origin: strin
         />
       </Field>
       {editing && <input type="hidden" name="enabled" value={initial?.enabled ? "on" : "off"} />}
+
+      <fieldset className="grid gap-5 border-t border-grey-700 pt-5 sm:col-span-2 sm:grid-cols-2">
+        <legend className="sr-only">Card on the /links page</legend>
+        <p className="font-mono text-sm font-bold text-paper sm:col-span-2">
+          Card on <span className="text-mint">/links</span>
+        </p>
+        <Field id="title" label="Title" error={state.errors?.title} hint="Needed to show it on /links.">
+          <input
+            id="title"
+            name="title"
+            maxLength={80}
+            defaultValue={initial?.title ?? ""}
+            aria-invalid={Boolean(state.errors?.title)}
+            aria-describedby={state.errors?.title ? "title-error" : undefined}
+            className={field}
+          />
+        </Field>
+        <Field id="description" label="Description (optional)" error={state.errors?.description} hint="One short line under the title.">
+          <input
+            id="description"
+            name="description"
+            maxLength={140}
+            defaultValue={initial?.description ?? ""}
+            aria-invalid={Boolean(state.errors?.description)}
+            aria-describedby={state.errors?.description ? "description-error" : undefined}
+            className={field}
+          />
+        </Field>
+        <div className="flex flex-wrap gap-x-8 gap-y-3 sm:col-span-2">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold">
+            <input type="checkbox" name="listed" defaultChecked={initial?.listed ?? false} className="size-5 accent-mint" />
+            Show on /links
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold">
+            <input type="checkbox" name="featured" defaultChecked={initial?.featured ?? false} className="size-5 accent-mint" />
+            Featured (pinned to the top, bigger card)
+          </label>
+        </div>
+      </fieldset>
 
       <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
         <button

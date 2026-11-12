@@ -91,7 +91,7 @@ public/brand/icons/*.svg       11 brand-kit icons (white set, verified by shape,
 public/brand/mark/chip.svg     program icon (the "chip"), white
 public/icons/*.png             192, 512 and maskable 512 PNG icons for the manifest (from src/app/icon.svg; maskable variant has the chip at 50% for the safe zone)
 public/brand/mark/aws.svg      AWS logo (smile), vector from the official SBG presentation template (ppt/media/image9.svg)
-db/migrations/*.sql            plain SQL migrations, applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
+db/migrations/*.sql            plain SQL migrations (001 links/clicks/sessions, 002 /links page columns), applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
 scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
 src/proxy.ts                   short links: people get a rewrite to /warp/{slug} (countdown page), bots/HEAD/?direct get a 307; click recording via waitUntil; cookie gate for /admin
 src/app/
@@ -102,7 +102,10 @@ src/app/
   api/auth/github|callback|logout   hand-written GitHub OAuth (state cookie, allowlist, DB sessions)
   api/admin/qr/[slug]          SVG QR download (admin only)
   globals.css                  tokens, z-index scale, Lenis CSS, custom classes in @layer components
+  links/page.tsx               public link-in-bio page (cached via getPageLinks, tag links-page); links/opengraph-image.tsx + twitter-image.tsx
   warp/[slug]/page.tsx         short-link countdown page (noindex; looks the link up again, 404s if inactive)
+  warp/[slug]/opengraph-image.tsx + twitter-image.tsx   per-short-link share card (title, destination name, logo)
+  og/game/route.tsx            share card for the 404 game (not-found pages cannot use the file convention)
   warp/[slug]/icon/route.ts    destination icon for that link only (not an open proxy); sandboxed CSP, CDN-cached, ?v=<hash of destination>
   not-found.tsx                404 page with the Packet run game (also reached via /press-start)
   opengraph-image.tsx          home OG image (uses src/lib/og.tsx)
@@ -118,13 +121,14 @@ src/content/
   site.ts                      site constants, nav, programs, stats, BrandIconName type, joinUrl, socials
   team.ts                      core team data (photo and links optional)
 src/lib/
-  db.ts                        lazy Neon HTTP query function (`sql()`), server-only
+  db.ts                        lazy Neon HTTP query function (`sql()`), server-only; `fetchOptions: { cache: "no-store" }` (G22)
   site-origin.ts               request origin from headers (works on previews and custom domains)
   auth/constants.ts            cookie names (kept separate so the proxy stays light)
   auth/session.ts              allowlist, create/verify/end/revoke sessions (SHA-256 token hashes in admin_sessions)
   links/validate.ts            SLUG_RE, RESERVED, parseLinkInput, deviceClass, referrerHost
   links/destination.ts         describeDestination(url): friendly name (Google Forms, WhatsApp group, AWS Builder Center...) + pinned Google product icons; urlVersion()
-  links/icon.ts                findIcon(): pinned icon > icons the page declares (best apple-touch-icon/SVG/sized) > /apple-touch-icon.png > Google favicon service; all server-side, private hosts never fetched, 6h per-instance memo
+  links/share.ts               shareInfo(slug) (live links only), accentFor(name), wrapLines()
+  links/icon.ts                findOgIcon() (PNG/JPEG/SVG data URI for Satori, WebP/ICO fall back to Google's PNG); findIcon(): pinned icon > icons the page declares (best apple-touch-icon/SVG/sized) > /apple-touch-icon.png > Google favicon service; all server-side, private hosts never fetched, 6h per-instance memo
   links/repo.ts                link queries, 30s per-instance lookup cache, stats queries
   gsap.ts                      plugin registration, custom eases, SCRAMBLE_CHARS, PRELOADER_DONE event, whenIntroDone(), reducedMotion()
   seo.ts                       isNonProductionDeploy, abs(), indexableImages, homeJsonLd() (schema.org Organization + WebSite), jsonLdScript()
@@ -154,6 +158,7 @@ src/components/
   sections/Join.tsx            "Build with us" + join card
   sections/Partner.tsx         sponsorship/collaboration: "Partner with us", mint partner pass (stats, barcode, mailto), four ways-to-collaborate tiles
   sections/Footer.tsx          mint footer, marquee, legal line, 404 game link
+  links/LinksPage.tsx          /links UI: LINKS brand tiles, tapes, pixel rain, featured + regular cards with destination icons, QR pass (copy, share, PNG download), socials
   warp/WarpRedirect.tsx        5s pixel hyperspace warp (canvas) + HUD, then location.replace
   game/PacketGame.tsx          canvas snake-style game with keyboard, swipe and d-pad
 ```
@@ -352,7 +357,8 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
 
 - Chip cells derive from the program icon's native 9x9 grid (the kit SVG is 3000 units in 333.33 steps): rows/cols 2..6 at 1 and 7, plus crown cells at 2, 4, 6 on the outer ring. 32 cubes, `InstancedMesh`. `src/lib/og.tsx` uses the same cell function for the OG chip.
 - Tile field 25x17 `InstancedMesh` behind the chip; pointer raycast onto a plane lifts nearby tiles in quantised steps.
-- Inputs: `progress.current.value` (0..1 hero scroll) and `progress.current.kick` (timestamp of a click). Effects: burst toward random scatter positions, shrink near the end, chip-pattern tiles flip to mint (cols 13..21, rows 4..12), automatic rebuild pulse every 5.5s for 1.4s, random single-cube pops.
+- Inputs: `progress.current.value` (0..1 hero scroll) and `progress.current.kick` (timestamp of a click). Effects: burst toward random scatter positions, shrink near the end, chip-pattern tiles flip to mint (cols 13..21, rows 4..12), random single-cube pops (paused during a rebuild).
+- Rebuild sequence (every 6.5s, 2.6s long, or on click): cubes lift onto a ring (radius 4.6 to 5.6, z 1.2 to 2.55) over the first 22%, the ring revolves a full turn clockwise while each cube tumbles one full turn about its own random axis (12% to 72%, ease-in-out), then cubes drop back into the logo one at a time, clockwise from 12 o'clock (`landRank`), each over 10% with an ease-out-back overshoot, finishing at 100%. It fades out as the hero scroll starts (`pulseAmt`), so it never fights the scroll burst. The chip group itself no longer rolls during the pulse.
 - End-state extras (driven by `reveal`): a quantised ripple radiating from the chip centre across the tile field, a 3-tile white "packet" running around the lit chip ring (tiles sorted by angle), and 48 mint sparks (`MeshBasicMaterial` InstancedMesh) rising and shrinking off lit tiles.
 - Resolution (G17): the card is CSS-scaled about 2.5x to fill the screen, so `syncResolution()` runs every frame and sets the renderer pixel ratio to `base ratio x (on-screen width / layout width)`, capped at the screen's pixel width and 4, only when it changes by more than 8%. Keep this if you touch the hero card scaling.
 - Renderer: `antialias`, `alpha`, base DPR capped at 1.75 (scaled up by `syncResolution`), sized by `ResizeObserver`, paused by `IntersectionObserver`. `new WebGLRenderer` is wrapped in try/catch (no WebGL leaves the static grid card).
@@ -397,6 +403,15 @@ Pinned scroll timeline (desktop, `end: "+=170%"`, `scrub: 0.6`): rows split (`xP
   - Metadata: expanded keywords, `category: education`, googleBot `max-image-preview: large`, `max-snippet: -1`, `max-video-preview: -1`, `formatDetection` off, `<html lang="en-IN">`, verification tags from `GOOGLE_SITE_VERIFICATION` / `BING_SITE_VERIFICATION` (only rendered when set).
   - `manifest.webmanifest`, `apple-icon.png` and `public/icons/*` give install/home-screen icons; `llms.txt` summarises the group for AI assistants.
   - `site.url` is inlined at build time: `NEXT_PUBLIC_SITE_URL` must be the final production domain on Vercel or canonical, sitemap and robots point at the wrong host.
+- Share cards per route (added 2026-11-12, user asked for OG images for every route and every short link):
+  | Route | Card |
+  |---|---|
+  | `/` and every route without its own (admin) | `src/app/opengraph-image.tsx` ("Learn. Build. / Deploy. Scale.", mint) |
+  | `/links` | `src/app/links/opengraph-image.tsx` ("Every link. / One tap.", purple) |
+  | 404 / `/press-start` (any unknown path) | `/og/game` via `not-found.tsx` metadata ("Packet run. / Press start.", amber) |
+  | `/{slug}` short links | `src/app/warp/[slug]/opengraph-image.tsx`: kicker = destination name (Google Forms, WhatsApp group, ...) or host; headline = the link's title (or `/slug`) wrapped to 3 lines of 18 chars at word boundaries, plus an "on {destination}" accent line when the title is one line and does not already name it; destination logo on a tilted paper tile in the accent colour (`accentFor`: Google purple, WhatsApp mint, Instagram magenta, AWS/LinkedIn/Discord/X blue, YouTube/Unstop/Devfolio/Luma amber, else mint); ended/unknown links get "This link / has ended." |
+  `renderOg` takes an optional `icon` data URI (PNG/JPEG/SVG; Satori cannot draw WebP or ICO). The card render is retried without the icon if an exotic SVG fails.
+- Short-link previews: the proxy rewrites link-preview crawlers (`isPreviewBot`: WhatsApp, Facebook/Meta, X, Discord, Telegram, Slack, LinkedIn, Skype/Teams, Pinterest, Reddit, iMessage/Applebot, Bing/Google preview tools, ...) to `/warp/{slug}`, whose `generateMetadata` emits the link's title, description (or "Opens {destination}. Shared by the AWS Student Builder Group at BVCOE."), `og:url` = the short link, Twitter large card and the card above; Next puts metadata in `<head>` for these bots. Crawlers do not run JS, so they never redirect. Search bots (Googlebot), scripts and `?direct` still get a 307. Preview fetches are recorded as `bot` clicks (left out of every number).
 - Satori rules: every element needs `display: flex` when it has children; fonts must be TTF/OTF/WOFF (not woff2), read with `readFile(join(process.cwd(), "src/assets/og/..."))`.
 
 ---
@@ -455,9 +470,16 @@ This repo deliberately uses the **club's** GitHub account, not the maintainer's 
 ### 16.1 Link shortener (as built)
 
 - Decisions (user): GitHub sign-in limited to an allowlist; links at the root (`/{slug}`).
-- Redirect path: `src/proxy.ts` matches single-segment paths (`/:slug((?!_next)[^/.]+)`). `isUsableSlug` (regex + `RESERVED`) filters first, then `findActiveLink` (enabled, not expired; 30s per-instance cache, cleared on the instance that writes). People (GET with a non-bot user agent) get a **rewrite** to `/warp/{slug}` (the address bar keeps the short link); bots, link-preview crawlers, requests without a user agent, non-GET and `?direct` get a plain **307**, so WhatsApp/Discord previews show the destination. Both carry `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`.
+- Redirect path: `src/proxy.ts` matches single-segment paths (`/:slug((?!_next)[^/.]+)`). `isUsableSlug` (regex + `RESERVED`) filters first, then `findActiveLink` (enabled, not expired; 30s per-instance cache, cleared on the instance that writes). People (GET with a non-bot user agent) and link-preview crawlers (`isPreviewBot`) get a **rewrite** to `/warp/{slug}` (the address bar keeps the short link; crawlers read the per-link share card from its metadata); other bots, requests without a user agent, non-GET from non-preview clients and `?direct` get a plain **307**. Both carry `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`.
 - Warp page (`src/app/warp/[slug]/page.tsx` + `src/components/warp/WarpRedirect.tsx`, added 2026-11-12; user asked for a very blingy 5s countdown whose warp speeds up and redirects at its end, a manual button, equally good on mobile, and then "polished, not vibe coded"). Layout: lockup top-left and a small `WARP 1.0 to 9.9` readout top-right; a giant solid paper mono digit with a hard mint offset shadow (`text-shadow: 0.06em 0.06em 0 mint`) that glitches and kicks on each tick; under it one solid **warp pass** card (same ticket language as the Partner pass: hard mint shadow, `outline-grey-700`, dashed perforation) holding status chip (In transit mint / On hold amber), From `/slug`, To host (big) + full URL, a 40-block bar with %, **Jump now** (real link, always works) and **Hold**/Resume (also Escape), and the line "Not moving? Tap Jump now." Canvas: square star streaks snapped to a 2px grid in mint/paper/grey with 4% rare kit-colour sparks, and a mint-only tunnel of square rings twisting in 7.5deg steps; speed on a cubic ramp, a slight magenta/blue ring split and a shake only in the last 20 to 30%, a mint square opening from the centre in `steps(7)` for the last 450ms, then `location.replace(url)` at 5000ms (a `setTimeout` is the source of truth, so a hidden tab still redirects). `pageshow` from the back/forward cache lands in the held state. Reduced motion: still frame, plain countdown, no flash, still redirects at 5s. Heights under 700px get tighter spacing (`[@media(max-height:700px)]:`); the digit is sized `clamp(6rem, min(40vw, 30dvh), 17rem)`. Canvas 200 stars/7 rings under 768px, 420/9 above, DPR capped at 2. `/warp/{slug}` visited directly still works (no click recorded); a missing slug renders the 404 page with status 200 (the page streams).
 - Destination icon (added 2026-11-12, user asked to see the logo of the site being redirected to; common destinations: AWS Builder Center, Google Forms, WhatsApp, Instagram): the pass card's To row shows a paper tile (hard mint shadow) with the destination's icon, the friendly name (or host) and the host/URL under it; the closing mint flash shows the same icon. The image is `/warp/{slug}/icon?v=...`, fetched and cached by our server, so visitors' browsers never contact a third party. No icon or a load failure shows the name's first letter instead (also handled when the image failed before hydration). Third-party SVGs are served with `Content-Security-Policy: ...; sandbox` and `nosniff` so they can never run script on our origin. Add new common destinations to `RULES` in `src/lib/links/destination.ts` (name, optional pinned icon).
+- Warp preview (added 2026-11-12): `/warp/{slug}?preview` plays the whole warp and never redirects; at the end the flash pulls back, the chip reads Arrived, the digit shows 0 and Hold becomes **Replay**. Admins can preview links that are off or expired (`getLinkBySlug` when `currentAdmin()`); for others `?preview` only works on active links. Buttons: "Preview" on every dashboard row and "Preview warp" on the link detail page (new tab).
+- /links page (added 2026-11-12; user asked for a very blingy link-in-bio page controlled like optica's, functionality from optica, design our own):
+  - Data: migration `002_links_page.sql` adds `title` (<= 80), `description` (<= 140), `listed` (default **false**, so existing private links never appear by surprise), `featured`, `sort_order` (+ partial index). Validation: a listed link needs a title; featured only applies when listed. New links get `sort_order = max + 1`.
+  - Admin: the link form has a "Card on /links" fieldset (title, description, Show on /links, Featured). The dashboard has an "On /links" section in page order (featured first) with up/down buttons (`moveLinkAction` -> `moveLink`: rewrites the whole listed order in one `update ... from unnest(ids, positions)` statement; moves never cross the featured/regular boundary) and badges on each row. Live state is shown ("hidden: link is off or expired").
+  - Public: `getPageLinks()` (`"use cache"`, `cacheTag("links-page")`, `cacheLife("minutes")`; on a database error it returns `null` with `cacheLife("seconds")` so an outage is never cached long) returns listed, enabled, titled, unexpired links. Every admin write (save, toggle, delete, move) calls `updateTag("links-page")`, so the page updates on the next request. Cards link to `/{slug}?direct`: clicks are counted by the proxy and there is no 5s warp on a link-in-bio.
+  - Design: Tapes under the header; "LINKS" as five solid brand tiles (mint, purple, amber, blue, magenta) with paper hard shadows that drop in, bob, glitch (tile flashes paper, letter scrambles) and spin on click; PixelRain + pixel grid behind; featured cards are mint with a marching dashed border and an amber "Featured" sticker; regular cards are dark with a numbered index, the destination icon tile (`/warp/{slug}/icon`), title, description, site name (hidden when it equals the title) and a 6x6 pixel arrow block; fine pointers get a cursor tilt and number scramble; every press bursts brand-colour pixels from the tap point. QR pass (purple shadow): QR of `site.url + /links`, Copy link, Share (only where `navigator.share` exists), Download QR (PNG rendered at 1024px). Desktop: title/QR/socials sticky on the left, cards on the right; phones: title, cards, QR, socials. Reduced motion: static.
+  - SEO: in the sitemap; own OG/Twitter image (`renderOg`, purple accent, "Every link. / One tap.").
 - Adding a new top-level route? Add its first segment to `RESERVED` in `src/lib/links/validate.ts`, or an existing short link could shadow it in the proxy.
 - Auth: `/api/auth/github` sets a 10-minute `state` cookie (path `/api/auth`) and redirects to GitHub (`read:user`); `/api/auth/callback` compares state in constant time, exchanges the code, reads `/user`, lowercases the login and checks `ADMIN_GITHUB_USERS`; sessions are 32 random bytes in an httpOnly SameSite=Lax cookie (`sbg_admin`, 7 days) and only their SHA-256 is stored. Logout is POST only and revokes the row. The proxy redirects `/admin*` without a cookie to `/admin/login`; every page and server action still calls `currentAdmin()` itself.
 - Admin UI: dashboard (totals, create form, list with status, 7-day and total clicks, last click, copy, on/off, link to detail); detail page (30-day IST daily chart with hover tooltips and an sr-only table, top referrers/countries/devices, bot count, QR preview + SVG download, edit form, delete with confirm). Toggle is a single `update ... set enabled = not enabled` (no lost updates).
@@ -502,6 +524,34 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-12: Share cards for every route and every short link
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "i hope you added proper opengraph image generation for each kind of link as well; link all the routes on the website covered; as well as for all the links that i add for redirection".
+- Decisions: short-link previews now show our per-link card (title, destination, logo) instead of the destination's own preview (link-preview crawlers get the warp page's metadata instead of a 307); search bots and scripts keep the 307; admin pages keep the site card (private, noindex).
+- Files added: `src/app/warp/[slug]/opengraph-image.tsx`, `src/app/warp/[slug]/twitter-image.tsx`, `src/app/og/game/route.tsx`, `src/lib/links/share.ts`.
+- Files changed: `src/lib/og.tsx` (optional `icon` tile instead of the chip), `src/lib/links/icon.ts` (`findOgIcon`), `src/lib/links/validate.ts` (`isPreviewBot`, `og` reserved), `src/proxy.ts` (preview crawlers rewritten to the warp page), `src/app/warp/[slug]/page.tsx` (`generateMetadata` per link), `src/app/not-found.tsx` (description, Open Graph and Twitter card for the 404 game).
+- Verified (production build, temporary `zz-*` links deleted afterwards): WhatsApp, Discordbot, Twitterbot and LinkedInBot UAs get 200 with `og:image` = `/warp/{slug}/opengraph-image`, title "Workshop sign-up | AWS SBG BVCOE", `og:title`, `og:description`, `og:url` = the short link, `twitter:card summary_large_image` and `twitter:image`; curl and Googlebot get 307; a browser UA still gets the warp page; `?direct` 307; WhatsApp HEAD 200; preview visits recorded as `bot`; cards rendered for a Google Form (purple, Forms logo, "on Google Forms"), a WhatsApp group (3-line title), Builder Center (redundant line dropped), Instagram with no title (`/zz-ig on Instagram`, PNG fallback for its WebP icon), a long title (word-boundary wrap) and an unknown slug ("This link has ended."); `/og/game` and the 404 page's `og:image`; `/links/opengraph-image` 200; lint and build clean.
+- Not verified: real WhatsApp/Discord/X/LinkedIn previews (need the deployed domain; WhatsApp caches previews per URL, so re-test with a new link after deploying).
+
+#### 2026-11-12: Hero chip rebuild: full revolution, then reassemble
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user (screenshot of the hero chip): "this in the hero section opens and then closes; make the cubes make a full revolve and then rearrange into the logo".
+- Files changed: `src/components/three/ChipScene.tsx` (rebuild pulse rewritten as described in section 10: lift onto a ring, full clockwise revolution with a full tumble per cube, clockwise one-by-one landing with overshoot; every 6.5s instead of 5.5s, 2.6s instead of 1.4s; click plays the same; scroll burst unchanged).
+- Verified (production build, 1440x900): frames after a click at 0.25, 0.7, 1.15, 1.6, 1.95, 2.25 and 2.7s show lift, tumbling orbit, landing in clockwise order and the finished logo; ring radius reduced after the first pass so no cube leaves the card; the automatic cycle runs the same sequence; lint and build clean.
+- Not verified: low-end GPU cost (same 32 instances, no extra draw calls).
+
+#### 2026-11-12: Warp preview in admin; /links page
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add a preview option in admin to see the warp page; also add in a very very very blingy /links page which can be controlled similar to optica website; only functionality to be seen from there, not design; crazy blingy and awesome looking design".
+- Decisions: optica's features carried over (title, description, featured pinned to top, show/hide while keeping the short link, admin order, QR of the page with download); optica's icon picker replaced by our automatic destination icons; cards go through `/{slug}?direct` (counted, no countdown); `listed` defaults to off; added Copy link and native Share to the QR card.
+- Files added: `db/migrations/002_links_page.sql`, `src/app/links/page.tsx`, `src/app/links/opengraph-image.tsx`, `src/app/links/twitter-image.tsx`, `src/components/links/LinksPage.tsx`.
+- Files changed: `src/lib/links/validate.ts` (title, description, listed, featured), `src/lib/links/repo.ts` (columns in create/update, `getLinkBySlug`, `listPageLinksForAdmin`, cached `getPageLinks`, `moveLink`, `LINKS_PAGE_TAG`), `src/app/admin/actions.ts` (`updateTag` on every write, `moveLinkAction`), `src/components/admin/LinkForm.tsx` (card fieldset), `src/app/admin/page.tsx` (On /links order section, badges, Preview button), `src/app/admin/links/[id]/page.tsx` (new fields, Preview warp button), `src/app/warp/[slug]/page.tsx` (`?preview`, admin preview of inactive links), `src/components/warp/WarpRedirect.tsx` (preview mode: Arrived, 0, Replay, copy), `src/app/sitemap.ts` (/links), `src/lib/db.ts` (`cache: "no-store"`, G22).
+- Database: migration 002 applied to the Neon database (additive columns; the one existing link is unchanged and unlisted).
+- Bug found and fixed during the work: a rebuild served the /links data from the first build because Next's fetch cache had stored Neon's HTTP response (G22); verified fixed by changing the database, rebuilding and seeing the change.
+- Verified (production build, real database; temporary `zz-*` links and a temporary local-only admin session (`zz-tester`, allowlisted only on the local server via an env override) were created and deleted afterwards): admin On /links list in page order, moving a link up re-ordered the list and /links at once (updateTag), up disabled at the featured boundary, 7 Preview links; /links at 1440x900 and 390x844 (screenshots: tiles, tapes, featured card, cards with logos, QR pass, socials), cursor tilt/hover state, no horizontal overflow, axe 0 violations (390), tapping a card went `/zz-ig?direct` -> Instagram, reduced motion shows every card at opacity 1, unlisted/disabled links absent; preview of `/warp/zz-wa?preview` as admin stayed on the page after 6.8s with Arrived, 0, Replay and the preview status text, Replay restarted the countdown; lint and build clean.
+- Not verified: Share button (only rendered where `navigator.share` exists; headless Chromium has none), Download QR output file, real-device feel.
+- Follow-ups (user): in /admin, tick "Show on /links" and add titles for the links that should appear; set `NEXT_PUBLIC_SITE_URL` so the QR points at the real domain.
 
 #### 2026-11-12: Destination logo on the warp page
 - Agent/tool: Claude Code (Claude Opus 5.5)
@@ -816,4 +866,5 @@ Template:
 | G19 | A CSS `transition` on `transform` (e.g. Tailwind `transition-transform`) on an element GSAP is tweening can freeze the tween's end state | Join perk rows stuck at x -24px |
 | G20 | SplitText `type: "chars"` alone lets a line wrap between any two letters ("Pu / ri"); use `"words,chars"` when the text can wrap | Advisor name on phones |
 | G21 | A ScrollTrigger `pin` jumps on phones because momentum scrolling runs on the compositor thread and the JS pin applies a frame late; hold elements with CSS `position: sticky` in a tall rail instead | Mobile team pan, Programs stack |
+| G22 | Neon's HTTP driver queries over `fetch`, and Next's fetch cache stored that response inside a `"use cache"` function and reused it across builds (a rebuild served data from the first build); the Neon client is created with `fetchOptions: { cache: "no-store" }` and caching is done only with `"use cache"` + tags | /links page |
 | G14 | SplitText (`autoSplit`) re-splitting an element whose nested child is being scrambled duplicated the child's text ("AWS.AWS.") | About title |

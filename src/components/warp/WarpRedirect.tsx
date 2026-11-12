@@ -22,7 +22,22 @@ type Ring = { z: number };
  * curve, split into magenta/blue at high speed and shake near the end. HUD: a giant digit that
  * fills with mint as each second passes, warp factor, 40-block bar, Jump now and Hold.
  */
-export function WarpRedirect({ url, host, name, icon, slug }: { url: string; host: string; name: string | null; icon: string; slug: string }) {
+export function WarpRedirect({
+  url,
+  host,
+  name,
+  icon,
+  slug,
+  preview = false,
+}: {
+  url: string;
+  host: string;
+  name: string | null;
+  icon: string;
+  slug: string;
+  /** Admin preview: play the whole warp, never redirect, offer Replay */
+  preview?: boolean;
+}) {
   const label = name ?? host;
   // Destination icon; falls back to a pixel monogram when the site has none or it fails to load
   const iconRef = useRef<HTMLImageElement>(null);
@@ -46,6 +61,7 @@ export function WarpRedirect({ url, host, name, icon, slug }: { url: string; hos
   const clock = useRef({ banked: 0, since: 0, running: true, done: false, flashing: false });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [held, setHeld] = useState(false);
+  const [arrived, setArrived] = useState(false);
 
   const elapsed = () => {
     const c = clock.current;
@@ -56,13 +72,31 @@ export function WarpRedirect({ url, host, name, icon, slug }: { url: string; hos
     const c = clock.current;
     if (c.done) return;
     c.done = true;
-    window.location.replace(url);
-  }, [url]);
+    if (!preview) {
+      window.location.replace(url);
+      return;
+    }
+    // Preview: stop at the end, then pull the flash back so the admin can look again
+    c.banked = DURATION;
+    c.running = false;
+    setArrived(true);
+    if (flashRef.current) gsap.to(flashRef.current, { clipPath: "inset(50% 50% 50% 50%)", duration: 0.35, ease: "steps(5)", delay: 0.8 });
+  }, [url, preview]);
+
 
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(go, Math.max(0, DURATION - elapsed()));
   }, [go]);
+
+  const replay = useCallback(() => {
+    const c = clock.current;
+    Object.assign(c, { banked: 0, since: performance.now(), running: true, done: false, flashing: false });
+    if (flashRef.current) gsap.set(flashRef.current, { clipPath: "inset(50% 50% 50% 50%)" });
+    setArrived(false);
+    setHeld(false);
+    schedule();
+  }, [schedule]);
 
   const hold = useCallback(() => {
     const c = clock.current;
@@ -259,7 +293,7 @@ export function WarpRedirect({ url, host, name, icon, slug }: { url: string; hos
 
       // HUD
       const remaining = DURATION - t;
-      const digit = Math.max(1, Math.ceil(remaining / 1000));
+      const digit = Math.max(c.done ? 0 : 1, Math.ceil(remaining / 1000));
       if (digit !== lastDigit) {
         lastDigit = digit;
         punch(digit);
@@ -350,11 +384,12 @@ export function WarpRedirect({ url, host, name, icon, slug }: { url: string; hos
             <span className="flex items-center gap-2 font-mono text-xs font-bold tracking-wide text-grey-300 uppercase">
               <BrandIcon name="chip" size={14} className="text-mint" />
               Warp pass
+              {preview && <span className="text-amber">Preview</span>}
             </span>
             <span
-              className={`px-2 py-1 font-mono text-[0.7rem] font-bold tracking-wide uppercase ${held ? "bg-amber text-grey-850" : "bg-mint text-mint-ink"}`}
+              className={`px-2 py-1 font-mono text-[0.7rem] font-bold tracking-wide uppercase ${held || arrived ? "bg-amber text-grey-850" : "bg-mint text-mint-ink"}`}
             >
-              {held ? "On hold" : "In transit"}
+              {arrived ? "Arrived" : held ? "On hold" : "In transit"}
             </span>
           </div>
 
@@ -399,20 +434,28 @@ export function WarpRedirect({ url, host, name, icon, slug }: { url: string; hos
               </a>
               <button
                 type="button"
-                onClick={held ? resume : hold}
-                aria-pressed={held}
+                onClick={arrived ? replay : held ? resume : hold}
+                aria-pressed={arrived ? undefined : held}
                 className="pressable flex h-12 min-w-[6.5rem] items-center justify-center px-4 font-bold whitespace-nowrap text-paper uppercase sm:min-w-[7.5rem] sm:px-5 outline outline-1 outline-grey-500 hover:outline-paper"
               >
-                {held ? "Resume" : "Hold"}
+                {arrived ? "Replay" : held ? "Resume" : "Hold"}
               </button>
             </div>
-            <p className="mt-3 text-sm text-grey-300">Not moving? Tap Jump now.</p>
+            <p className="mt-3 text-sm text-grey-300">
+              {preview ? "Preview: this page will not redirect. Replay to watch it again." : "Not moving? Tap Jump now."}
+            </p>
           </div>
         </section>
       </div>
 
       <p role="status" className="sr-only">
-        {held ? `Redirect to ${host} held. Use Resume or Jump now.` : `Redirecting to ${host} in 5 seconds. Press Escape or Hold to stop, or use Jump now.`}
+        {preview
+          ? arrived
+            ? `Preview finished. A visitor would now be on ${host}. Use Replay to watch it again.`
+            : `Previewing the warp to ${host}. It will not redirect.`
+          : held
+            ? `Redirect to ${host} held. Use Resume or Jump now.`
+            : `Redirecting to ${host} in 5 seconds. Press Escape or Hold to stop, or use Jump now.`}
       </p>
 
       {/* Closing flash */}

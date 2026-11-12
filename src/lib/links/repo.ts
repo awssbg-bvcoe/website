@@ -1,4 +1,5 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { sql } from "@/lib/db";
 import type { LinkInput } from "./validate";
 
@@ -12,7 +13,17 @@ export type LinkRow = {
   created_by: string;
   created_at: string;
   updated_at: string;
+  title: string | null;
+  description: string | null;
+  listed: boolean;
+  featured: boolean;
+  sort_order: number;
 };
+
+/** Cache tag for the public /links page; admin writes call `updateTag(LINKS_PAGE_TAG)`. */
+export const LINKS_PAGE_TAG = "links-page";
+
+export type PageLink = Pick<LinkRow, "id" | "slug" | "url" | "title" | "description" | "featured">;
 
 export type LinkWithStats = LinkRow & { total: number; last7: number; last_click: string | null };
 
@@ -68,10 +79,17 @@ export async function slugTaken(slug: string, exceptId?: number) {
   return rows.length > 0;
 }
 
+export async function getLinkBySlug(slug: string) {
+  const rows = (await sql()`select * from links where slug = ${slug}`) as LinkRow[];
+  return rows[0] ?? null;
+}
+
 export async function createLink(input: LinkInput, by: string) {
   const rows = (await sql()`
-    insert into links (slug, url, note, enabled, expires_at, created_by)
-    values (${input.slug}, ${input.url}, ${input.note}, ${input.enabled}, ${input.expiresAt}, ${by})
+    insert into links (slug, url, note, enabled, expires_at, created_by, title, description, listed, featured, sort_order)
+    values (${input.slug}, ${input.url}, ${input.note}, ${input.enabled}, ${input.expiresAt}, ${by},
+      ${input.title}, ${input.description}, ${input.listed}, ${input.featured},
+      coalesce((select max(sort_order) + 1 from links), 0))
     returning id`) as { id: number }[];
   return rows[0].id;
 }
@@ -80,7 +98,9 @@ export async function updateLink(id: number, input: LinkInput) {
   const before = await getLink(id);
   await sql()`
     update links set slug = ${input.slug}, url = ${input.url}, note = ${input.note},
-      enabled = ${input.enabled}, expires_at = ${input.expiresAt}, updated_at = now()
+      enabled = ${input.enabled}, expires_at = ${input.expiresAt},
+      title = ${input.title}, description = ${input.description}, listed = ${input.listed}, featured = ${input.featured},
+      updated_at = now()
     where id = ${id}`;
   if (before) forgetSlug(before.slug);
   forgetSlug(input.slug);
@@ -91,6 +111,55 @@ export async function toggleLink(id: number) {
   const rows = (await sql()`
     update links set enabled = not enabled, updated_at = now() where id = ${id} returning slug`) as { slug: string }[];
   if (rows[0]) forgetSlug(rows[0].slug);
+}
+
+/** Links with a card on /links, in page order (featured first). Live links only. */
+export async function listPageLinksForAdmin() {
+  return (await sql()`
+    select id, slug, url, title, description, featured, enabled, expires_at from links
+    where listed order by featured desc, sort_order, id`) as (PageLink & { enabled: boolean; expires_at: string | null })[];
+}
+
+/**
+ * Cached data for the public /links page. Expired and disabled links drop off on their own
+ * within the cache lifetime; admin edits refresh it at once through the tag.
+ */
+export async function getPageLinks(): Promise<PageLink[] | null> {
+  "use cache";
+  cacheTag(LINKS_PAGE_TAG);
+  try {
+    const rows = (await sql()`
+      select id, slug, url, title, description, featured from links
+      where listed and enabled and title is not null and (expires_at is null or expires_at > now())
+      order by featured desc, sort_order, id`) as PageLink[];
+    cacheLife("minutes");
+    return rows;
+  } catch (err) {
+    // Never cache an outage for long (also keeps builds working without a database)
+    console.error("links page query failed", err);
+    cacheLife("seconds");
+    return null;
+  }
+}
+
+/**
+ * Move a listed link one place up or down within its group (featured or not). The new order is
+ * written in a single UPDATE, so concurrent moves can never leave duplicate positions half-saved.
+ */
+export async function moveLink(id: number, dir: -1 | 1) {
+  const rows = (await sql()`
+    select id, featured from links where listed order by featured desc, sort_order, id`) as { id: number; featured: boolean }[];
+  const i = rows.findIndex((r) => Number(r.id) === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= rows.length || rows[i].featured !== rows[j].featured) return false;
+  [rows[i], rows[j]] = [rows[j], rows[i]];
+  const ids = rows.map((r) => Number(r.id));
+  const order = ids.map((_, k) => k);
+  await sql()`
+    update links set sort_order = v.pos
+    from unnest(${ids}::bigint[], ${order}::int[]) as v(id, pos)
+    where links.id = v.id`;
+  return true;
 }
 
 export async function deleteLink(id: number) {

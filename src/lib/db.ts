@@ -8,7 +8,9 @@ export function sql() {
   if (!client) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set");
-    client = neon(url);
+    // Never let Next's fetch cache store database responses (Neon queries over fetch): it kept a
+    // build-time result across builds. Caching is done explicitly with "use cache" + tags (G22).
+    client = neon(url, { fetchOptions: { cache: "no-store" } });
   }
   return client;
 }

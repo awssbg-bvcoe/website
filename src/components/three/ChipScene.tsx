@@ -81,8 +81,29 @@ export default function ChipScene({ progress }: { progress: MutableRefObject<Sce
     const spin = base.map(() => new THREE.Euler(Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 2 - 1));
     // Per-cube random "pop" (a quick jump towards the camera)
     const popAt = new Float32Array(base.length).fill(-10);
-    const PULSE_EVERY = 5.5; // seconds between automatic rebuilds
-    const PULSE_LEN = 1.4;
+    // Rebuild sequence: lift off onto a ring, revolve a full turn (each cube also tumbles once),
+    // then drop back into the logo one cube at a time, clockwise from the top.
+    const PULSE_EVERY = 6.5; // seconds between automatic rebuilds
+    const PULSE_LEN = 2.6;
+    const TAU = Math.PI * 2;
+    const orbit = base.map((p, i) => ({
+      angle: Math.atan2(p.y, p.x),
+      radius: 4.6 + ((i * 7) % 5) * 0.25,
+      z: 1.2 + ((i * 3) % 4) * 0.45,
+      axis: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
+    }));
+    // Landing order: clockwise from 12 o'clock, so the logo builds round like a clock hand
+    const landRank = new Float32Array(base.length);
+    base
+      .map((p, i) => ({ i, a: (Math.PI / 2 - Math.atan2(p.y, p.x) + TAU) % TAU }))
+      .sort((a, b) => a.a - b.a)
+      .forEach((o, k) => (landRank[o.i] = k / base.length));
+    const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+    const easeOutCubic = (x: number) => 1 - (1 - x) ** 3;
+    const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+    const easeOutBack = (x: number) => 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2;
+    const orbitPos = new THREE.Vector3();
+    const pulseQ = new THREE.Quaternion();
 
     // Grid tiles behind the chip
     const COLS = 25;
@@ -199,25 +220,41 @@ export default function ChipScene({ progress }: { progress: MutableRefObject<Sce
       const kickAge = progress.current.kick ? (performance.now() - progress.current.kick) / 1000 : 99;
       const cycle = t % PULSE_EVERY;
       const phase = kickAge < PULSE_LEN ? kickAge : cycle > PULSE_EVERY - PULSE_LEN ? cycle - (PULSE_EVERY - PULSE_LEN) : -1;
-      const pulse = phase >= 0 ? Math.sin((phase / PULSE_LEN) * Math.PI) ** 2 * (kickAge < PULSE_LEN ? 0.75 : 0.45) : 0;
-      if (Math.random() < 0.06) popAt[Math.floor(Math.random() * popAt.length)] = t;
+      // u: 0..1 through the rebuild; it fades out as the hero scroll takes over
+      const u = phase >= 0 ? phase / PULSE_LEN : -1;
+      const pulseAmt = 1 - THREE.MathUtils.smoothstep(p, 0.05, 0.3);
+      const lift = u >= 0 ? easeOutCubic(clamp01(u / 0.22)) * pulseAmt : 0;
+      const revolve = u >= 0 ? easeInOutCubic(clamp01((u - 0.12) / 0.6)) : 0;
+      if (u < 0 && Math.random() < 0.06) popAt[Math.floor(Math.random() * popAt.length)] = t;
 
-      const burst = Math.min(1, THREE.MathUtils.smoothstep(p, 0.3, 0.75) + pulse * (1 - p));
+      const burst = Math.min(1, THREE.MathUtils.smoothstep(p, 0.3, 0.75));
       const shrink = 1 - THREE.MathUtils.smoothstep(p, 0.55, 0.85);
       const reveal = THREE.MathUtils.smoothstep(p, 0.6, 0.95);
 
       // Springy tilt towards the pointer
       tilt.x += (pointer.y * 0.35 - tilt.x) * 0.06;
       tilt.y += (pointer.x * 0.5 - tilt.y) * 0.06;
-      chipGroup.rotation.set(-tilt.x + Math.sin(t * 0.6) * 0.05, tilt.y + Math.sin(t * 0.4) * 0.08 + burst * 0.8, pulse * 0.6);
+      chipGroup.rotation.set(-tilt.x + Math.sin(t * 0.6) * 0.05, tilt.y + Math.sin(t * 0.4) * 0.08 + burst * 0.8, 0);
       chipGroup.scale.setScalar(1 + p * 0.35);
 
       for (let i = 0; i < base.length; i++) {
-        v.copy(base[i]).lerp(scatter[i], burst);
-        v.z += Math.sin(t * 1.4 + i * 0.6) * 0.12 * (1 - burst);
+        v.copy(base[i]);
+        pulseQ.identity();
+        if (lift > 0) {
+          const o = orbit[i];
+          const a = o.angle - TAU * revolve; // clockwise, like the landing order
+          orbitPos.set(Math.cos(a) * o.radius, Math.sin(a) * o.radius, o.z);
+          // Each cube lands in turn (clockwise), with a small overshoot "thunk" into its slot
+          const land = clamp01((u - (0.7 + landRank[i] * 0.2)) / 0.1);
+          const back = land > 0 ? easeOutBack(land) : 0;
+          v.lerp(orbitPos, lift).lerp(base[i], back);
+          pulseQ.setFromAxisAngle(o.axis, TAU * revolve * pulseAmt);
+        }
+        v.lerp(scatter[i], burst);
+        v.z += Math.sin(t * 1.4 + i * 0.6) * 0.12 * (1 - burst) * (1 - lift);
         const pop = t - popAt[i];
         if (pop < 0.5) v.z += Math.sin((pop / 0.5) * Math.PI) * 1.4;
-        q.setFromEuler(e.set(spin[i].x * burst, spin[i].y * burst, spin[i].z * burst));
+        q.setFromEuler(e.set(spin[i].x * burst, spin[i].y * burst, spin[i].z * burst)).multiply(pulseQ);
         m.compose(v, q, s.setScalar(Math.max(shrink, 0.0001)));
         chip.setMatrixAt(i, m);
       }

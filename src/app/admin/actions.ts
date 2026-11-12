@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentAdmin } from "@/lib/auth/session";
-import { createLink, deleteLink, slugTaken, toggleLink, updateLink } from "@/lib/links/repo";
+import { createLink, deleteLink, LINKS_PAGE_TAG, moveLink, slugTaken, toggleLink, updateLink } from "@/lib/links/repo";
 import { parseLinkInput, type FieldErrors } from "@/lib/links/validate";
 import { siteOrigin } from "@/lib/site-origin";
 
@@ -38,6 +38,7 @@ export async function saveLink(_prev: LinkFormState, form: FormData): Promise<Li
     console.error("save link failed", err);
     return { message: "Could not save the link. Try again." };
   }
+  updateTag(LINKS_PAGE_TAG);
   revalidatePath("/admin");
   if (id) revalidatePath(`/admin/links/${id}`);
   return { ok: true, slug: value.slug };
@@ -48,6 +49,7 @@ export async function toggleLinkAction(form: FormData) {
   const id = idFrom(form);
   if (!id) return;
   await toggleLink(id);
+  updateTag(LINKS_PAGE_TAG);
   revalidatePath("/admin");
   revalidatePath(`/admin/links/${id}`);
 }
@@ -57,6 +59,17 @@ export async function deleteLinkAction(form: FormData) {
   const id = idFrom(form);
   if (!id) return;
   await deleteLink(id);
+  updateTag(LINKS_PAGE_TAG);
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/** Up/down on the /links order list. */
+export async function moveLinkAction(form: FormData) {
+  await requireAdmin();
+  const id = idFrom(form);
+  const dir = form.get("dir") === "up" ? -1 : 1;
+  if (!id) return;
+  if (await moveLink(id, dir)) updateTag(LINKS_PAGE_TAG);
+  revalidatePath("/admin");
 }
