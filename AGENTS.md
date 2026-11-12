@@ -93,7 +93,7 @@ public/icons/*.png             192, 512 and maskable 512 PNG icons for the manif
 public/brand/mark/aws.svg      AWS logo (smile), vector from the official SBG presentation template (ppt/media/image9.svg)
 db/migrations/*.sql            plain SQL migrations, applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
 scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
-src/proxy.ts                   short-link redirects (/{slug} -> 307) + click recording via waitUntil; cookie gate for /admin
+src/proxy.ts                   short links: people get a rewrite to /warp/{slug} (countdown page), bots/HEAD/?direct get a 307; click recording via waitUntil; cookie gate for /admin
 src/app/
   layout.tsx                   root: fonts (next/font/local), metadata, skip link, seen-session inline script
   (site)/layout.tsx            public site only: Preloader, SmoothScroll, PixelTrail (admin and 404 skip them)
@@ -102,6 +102,8 @@ src/app/
   api/auth/github|callback|logout   hand-written GitHub OAuth (state cookie, allowlist, DB sessions)
   api/admin/qr/[slug]          SVG QR download (admin only)
   globals.css                  tokens, z-index scale, Lenis CSS, custom classes in @layer components
+  warp/[slug]/page.tsx         short-link countdown page (noindex; looks the link up again, 404s if inactive)
+  warp/[slug]/icon/route.ts    destination icon for that link only (not an open proxy); sandboxed CSP, CDN-cached, ?v=<hash of destination>
   not-found.tsx                404 page with the Packet run game (also reached via /press-start)
   opengraph-image.tsx          home OG image (uses src/lib/og.tsx)
   twitter-image.tsx            re-exports opengraph-image
@@ -121,6 +123,8 @@ src/lib/
   auth/constants.ts            cookie names (kept separate so the proxy stays light)
   auth/session.ts              allowlist, create/verify/end/revoke sessions (SHA-256 token hashes in admin_sessions)
   links/validate.ts            SLUG_RE, RESERVED, parseLinkInput, deviceClass, referrerHost
+  links/destination.ts         describeDestination(url): friendly name (Google Forms, WhatsApp group, AWS Builder Center...) + pinned Google product icons; urlVersion()
+  links/icon.ts                findIcon(): pinned icon > icons the page declares (best apple-touch-icon/SVG/sized) > /apple-touch-icon.png > Google favicon service; all server-side, private hosts never fetched, 6h per-instance memo
   links/repo.ts                link queries, 30s per-instance lookup cache, stats queries
   gsap.ts                      plugin registration, custom eases, SCRAMBLE_CHARS, PRELOADER_DONE event, whenIntroDone(), reducedMotion()
   seo.ts                       isNonProductionDeploy, abs(), indexableImages, homeJsonLd() (schema.org Organization + WebSite), jsonLdScript()
@@ -150,6 +154,7 @@ src/components/
   sections/Join.tsx            "Build with us" + join card
   sections/Partner.tsx         sponsorship/collaboration: "Partner with us", mint partner pass (stats, barcode, mailto), four ways-to-collaborate tiles
   sections/Footer.tsx          mint footer, marquee, legal line, 404 game link
+  warp/WarpRedirect.tsx        5s pixel hyperspace warp (canvas) + HUD, then location.replace
   game/PacketGame.tsx          canvas snake-style game with keyboard, swipe and d-pad
 ```
 
@@ -450,7 +455,9 @@ This repo deliberately uses the **club's** GitHub account, not the maintainer's 
 ### 16.1 Link shortener (as built)
 
 - Decisions (user): GitHub sign-in limited to an allowlist; links at the root (`/{slug}`).
-- Redirect path: `src/proxy.ts` matches single-segment paths (`/:slug((?!_next)[^/.]+)`). `isUsableSlug` (regex + `RESERVED`) filters first, then `findActiveLink` (enabled, not expired; 30s per-instance cache, cleared on the instance that writes), then a **307** with `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`. Misses and DB errors fall through to the app (404 game). Clicks are recorded only for GET, after the response, via `event.waitUntil`: device class, referrer host and `x-vercel-ip-country`; never IPs, full referrers or user agents. Bots are stored as `bot` and excluded from every admin number.
+- Redirect path: `src/proxy.ts` matches single-segment paths (`/:slug((?!_next)[^/.]+)`). `isUsableSlug` (regex + `RESERVED`) filters first, then `findActiveLink` (enabled, not expired; 30s per-instance cache, cleared on the instance that writes). People (GET with a non-bot user agent) get a **rewrite** to `/warp/{slug}` (the address bar keeps the short link); bots, link-preview crawlers, requests without a user agent, non-GET and `?direct` get a plain **307**, so WhatsApp/Discord previews show the destination. Both carry `Cache-Control: private, no-store` and `X-Robots-Tag: noindex`.
+- Warp page (`src/app/warp/[slug]/page.tsx` + `src/components/warp/WarpRedirect.tsx`, added 2026-11-12; user asked for a very blingy 5s countdown whose warp speeds up and redirects at its end, a manual button, equally good on mobile, and then "polished, not vibe coded"). Layout: lockup top-left and a small `WARP 1.0 to 9.9` readout top-right; a giant solid paper mono digit with a hard mint offset shadow (`text-shadow: 0.06em 0.06em 0 mint`) that glitches and kicks on each tick; under it one solid **warp pass** card (same ticket language as the Partner pass: hard mint shadow, `outline-grey-700`, dashed perforation) holding status chip (In transit mint / On hold amber), From `/slug`, To host (big) + full URL, a 40-block bar with %, **Jump now** (real link, always works) and **Hold**/Resume (also Escape), and the line "Not moving? Tap Jump now." Canvas: square star streaks snapped to a 2px grid in mint/paper/grey with 4% rare kit-colour sparks, and a mint-only tunnel of square rings twisting in 7.5deg steps; speed on a cubic ramp, a slight magenta/blue ring split and a shake only in the last 20 to 30%, a mint square opening from the centre in `steps(7)` for the last 450ms, then `location.replace(url)` at 5000ms (a `setTimeout` is the source of truth, so a hidden tab still redirects). `pageshow` from the back/forward cache lands in the held state. Reduced motion: still frame, plain countdown, no flash, still redirects at 5s. Heights under 700px get tighter spacing (`[@media(max-height:700px)]:`); the digit is sized `clamp(6rem, min(40vw, 30dvh), 17rem)`. Canvas 200 stars/7 rings under 768px, 420/9 above, DPR capped at 2. `/warp/{slug}` visited directly still works (no click recorded); a missing slug renders the 404 page with status 200 (the page streams).
+- Destination icon (added 2026-11-12, user asked to see the logo of the site being redirected to; common destinations: AWS Builder Center, Google Forms, WhatsApp, Instagram): the pass card's To row shows a paper tile (hard mint shadow) with the destination's icon, the friendly name (or host) and the host/URL under it; the closing mint flash shows the same icon. The image is `/warp/{slug}/icon?v=...`, fetched and cached by our server, so visitors' browsers never contact a third party. No icon or a load failure shows the name's first letter instead (also handled when the image failed before hydration). Third-party SVGs are served with `Content-Security-Policy: ...; sandbox` and `nosniff` so they can never run script on our origin. Add new common destinations to `RULES` in `src/lib/links/destination.ts` (name, optional pinned icon).
 - Adding a new top-level route? Add its first segment to `RESERVED` in `src/lib/links/validate.ts`, or an existing short link could shadow it in the proxy.
 - Auth: `/api/auth/github` sets a 10-minute `state` cookie (path `/api/auth`) and redirects to GitHub (`read:user`); `/api/auth/callback` compares state in constant time, exchanges the code, reads `/user`, lowercases the login and checks `ADMIN_GITHUB_USERS`; sessions are 32 random bytes in an httpOnly SameSite=Lax cookie (`sbg_admin`, 7 days) and only their SHA-256 is stored. Logout is POST only and revokes the row. The proxy redirects `/admin*` without a cookie to `/admin/login`; every page and server action still calls `currentAdmin()` itself.
 - Admin UI: dashboard (totals, create form, list with status, 7-day and total clicks, last click, copy, on/off, link to detail); detail page (30-day IST daily chart with hover tooltips and an sr-only table, top referrers/countries/devices, bot count, QR preview + SVG download, edit form, delete with confirm). Toggle is a single `update ... set enabled = not enabled` (no lost updates).
@@ -495,6 +502,33 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-12: Destination logo on the warp page
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in icon/favicon/something such that you can see the logo of thing we are being redirected to; most common links: AWS Builder Center, Google Forms, WhatsApp, Instagram sometimes".
+- Decisions: icons are fetched server-side (privacy: no visitor request to Google or the destination) and only for real short links (no open proxy); the Google favicon service alone gave 16 to 32px icons for Builder Center, WhatsApp and Forms, so the page's own declared icons are preferred; Google product pages (a form or doc answers our server with a sign-in/error page showing the generic "G") are pinned to Google's official product artwork (`gstatic.com/images/branding/product/2x/<product>_2020q4_96dp.png`); friendly names for common destinations.
+- Files added: `src/lib/links/destination.ts`, `src/lib/links/icon.ts`, `src/app/warp/[slug]/icon/route.ts`.
+- Files changed: `src/app/warp/[slug]/page.tsx` (name, icon URL with version); `src/components/warp/WarpRedirect.tsx` (`DestinationIcon` tile with letter fallback in the To row; icon in the closing flash; To label centred).
+- Verified (production build, real database, temporary `zz-*` links deleted afterwards): icons served for Builder Center (its SVG), a Google Form (official 192px Forms icon), a WhatsApp group and wa.me (WhatsApp SVG), Instagram (180px), LinkedIn (64px via fallback); example.com has none and shows the "E" tile; unknown slug 404; icon responses carry the sandbox CSP and a 1-day/7-day cache; screenshots of the card for each (390, 360, 1440 wide) and of the flash showing the WhatsApp logo; no page scroll or sideways overflow; axe 0 violations; To label and tile centred (602px both).
+- Not verified: a real Google Form URL (only a dummy form ID; the pinned icon makes the result the same); behaviour when a destination is slow (icon fetch times out after 3.5 to 4s per step, the page itself never waits for it).
+
+#### 2026-11-12: Warp page design polish
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "just ensure the design is polished and does not look vibe coded".
+- Decisions (agent): the first version had many floating translucent label boxes, a multicolour canvas that broke the brand's one-accent rule, and a stepped outline/fill digit that read as a glitch. Rebuilt around one idea: a single "warp pass" card (Partner-section ticket language) holding route, progress and controls; solid digit with the brand's hard offset shadow; canvas restrained to mint/paper/grey with rare kit-colour sparks and a mint-only tunnel; chromatic split and shake only near the end; removed the "Warp drive engaged" badge and duplicate labels.
+- Files changed: `src/components/warp/WarpRedirect.tsx` (HUD rewritten as described in 16.1; canvas palette, density, ring count/width, glow and shake toned down).
+- Verified (production build, temporary link `zz-warp`, deleted afterwards): screenshots at 1.2s, 3.6s and 4.7s (1440x900) and on 390x844, 360x640 and 768x1024; no page scroll, no sideways overflow, no overlap between corner brackets and the HUD or the card's shadow, and both buttons a single 48px line at 320x568, 360x640, 375x667, 390x844, 768x1024 and 1440x900; axe 0 violations (390x844).
+- Bugs found and fixed during the work: the WARP readout touched the top-right bracket on phones; "Jump now" wrapped to two lines at 360px while held; the helper line left a one-word last line.
+
+#### 2026-11-12: Warp countdown page for short links
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in a very blingy 5 second countdown page before redirection, such that there is a crazy warp animation that keeps going faster and faster and at the end of the warp the link is redirected; also add a manual click this button if not redirected thingy; very funky, not generic; equally good on mobile".
+- Decisions: bots and preview crawlers still get the 307 (so shared short links preview the destination); people get a rewrite, not a redirect, so the URL stays the short link; added Hold/Resume (and Escape) so people can check the destination before leaving.
+- Files added: `src/app/warp/[slug]/page.tsx`, `src/components/warp/WarpRedirect.tsx` (details in 16.1).
+- Files changed: `src/proxy.ts` (rewrite for people, 307 for bots/HEAD/no UA/`?direct`; device class computed once); `src/lib/links/validate.ts` (`warp` reserved).
+- Verified (production build, real database, temporary link `zz-warp` to example.com, deleted afterwards): curl and WhatsApp UA get 307 to the target; iPhone UA gets 200 with the page, `private, no-store` and `noindex`; `?direct` gets 307; in Chromium the page redirected 5.2s after navigation start (1440x900); Hold kept the page for 3s, Resume finished the remaining time (1.6s); reduced motion redirected at 5.7s from navigation start; axe 0 violations (390x844, held); no page scroll or sideways overflow at 360x640, 375x667, 390x844, 1280x720, 1440x900; no overlap between corner brackets and HUD; clicks recorded for both paths (mobile, desktop, bot); screenshots at 1.2s, 3.5s and 4.45s (desktop) and on phones.
+- Bug found and fixed during the work: on phones the corner brackets covered the chip, the WARP pill and the helper line (smaller brackets, more padding); on 360x640 the page was 45px taller than the screen (digit size capped by height, tighter short-screen spacing).
+- Not verified: real-device GPU cost on low-end phones; Safari.
 
 #### 2026-11-12: SEO: robots.txt, sitemap, structured data, manifest, icons, llms.txt
 - Agent/tool: Claude Code (Claude Opus 5.5)

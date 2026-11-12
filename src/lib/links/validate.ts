@@ -19,6 +19,7 @@ export const RESERVED = new Set([
   "icons",
   "apple-icon",
   "llms",
+  "warp",
   "favicon",
   "brand",
   "robots",
