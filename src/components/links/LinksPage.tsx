@@ -322,12 +322,13 @@ export function LinksPage({ links, qrSvg, pageUrl }: { links: PageLinkCard[] | n
         </Link>
       </header>
 
-      {/* Crossing tapes under the header */}
-      <div className="relative mt-6 h-[130px] overflow-hidden sm:mt-8">
-        <Tapes className="absolute inset-x-0 top-6" />
+      {/* Crossing tapes under the header. No vertical clipping: the tilted ends rise and fall
+          about 3vw beyond the strip (the page clips sideways); the raised end slides behind the header. */}
+      <div className="relative -mt-4 h-[clamp(140px,11.5vw,185px)]">
+        <Tapes className="absolute inset-x-0 top-[max(0.5rem,2vw)]" />
       </div>
 
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 pt-8 pb-16 sm:px-8 lg:grid-cols-12 lg:gap-12 lg:pt-12">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 pt-6 pb-16 sm:px-8 lg:grid-cols-12 lg:gap-12 lg:pt-8">
         {/* Left: title, QR, socials (sticky on desktop) */}
         <div className="flex flex-col gap-8 lg:sticky lg:top-8 lg:col-span-5 lg:self-start">
           <div>
