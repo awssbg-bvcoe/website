@@ -188,16 +188,10 @@ export function WarpRedirect({
         el.textContent = text;
         return;
       }
-      // Two glitch frames of random digits, then the real one lands with a kick
-      let n = 0;
-      const glitch = () => {
-        if (n < 2) {
-          el.textContent = String((Math.random() * 10) | 0);
-          n++;
-          gsap.delayedCall(0.05, glitch);
-        } else el.textContent = text;
-      };
-      glitch();
+      // Only ever the real number: it drops in from above in hard pixel steps, then the whole
+      // digit kicks. (Random "glitch" digits here read as the count jumping back and forth.)
+      el.textContent = text;
+      gsap.fromTo(el, { yPercent: -35, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.24, ease: "steps(4)", overwrite: true });
       gsap.fromTo(wrap, { scale: 1.25, rotation: rand(-6, 6) }, { scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2.6)", overwrite: true });
     };
 
@@ -371,7 +365,7 @@ export function WarpRedirect({
             aria-hidden="true"
             className="block font-mono text-[clamp(6rem,min(40vw,30dvh),17rem)] leading-[0.8] font-bold text-paper [text-shadow:0.06em_0.06em_0_var(--mint)]"
           >
-            <span ref={numText}>5</span>
+            <span ref={numText} className="inline-block">5</span>
           </span>
         </div>
 
