@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Lockup } from "@/components/brand/Lockup";
-import { nav } from "@/content/site";
+import { nav, site } from "@/content/site";
 import { gsap, ScrollTrigger, useGSAP, whenIntroDone } from "@/lib/gsap";
 
 export function Nav() {
@@ -176,7 +176,9 @@ export function Nav() {
             </a>
           ))}
           <a
-            href="#join"
+            href={site.joinUrl}
+            target="_blank"
+            rel="noreferrer"
             onClick={() => open && close(false)}
             className="pressable relative flex items-center bg-mint px-3 text-sm font-bold text-mint-ink uppercase transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-paper sm:px-4"
           >

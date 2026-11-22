@@ -11,8 +11,8 @@ export const site = {
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
-  /** Where "Join the group" sends people. Swap for the group's own page or registration form. */
-  joinUrl: "https://builder.aws.com/community/student-builder-groups",
+  /** Where every Join button sends people: the group's WhatsApp invite (a short link on this site). */
+  joinUrl: "https://awssbg-bvcoe.vercel.app/whatsapp-invite",
   programUrl: "https://builder.aws.com/community/student-builder-groups",
   /** Add the group's channels here; empty entries are not rendered. */
   socials: [
