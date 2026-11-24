@@ -91,6 +91,7 @@ public/brand/icons/*.svg       11 brand-kit icons (white set, verified by shape,
 public/brand/mark/chip.svg     program icon (the "chip"), white
 public/icons/*.png             192, 512 and maskable 512 PNG icons for the manifest (from src/app/icon.svg; maskable variant has the chip at 50% for the safe zone)
 public/brand/mark/aws.svg      AWS logo (smile), vector from the official SBG presentation template (ppt/media/image9.svg)
+public/brand/mark/bvp.png      Bharati Vidyapeeth crest (full colour, 375x180, trimmed, metadata stripped), from ~/projects/optica-website/public/college-logo.png
 db/migrations/*.sql            plain SQL migrations (001 links/clicks/sessions, 002 /links page columns), applied in name order by scripts/migrate.mjs (`pnpm db:migrate`)
 scripts/migrate.mjs            migration runner (Neon Pool over WebSocket, one transaction per file, schema_migrations table)
 src/proxy.ts                   short links: people get a rewrite to /warp/{slug} (countdown page), bots/HEAD/?direct get a 307; click recording via waitUntil; cookie gate for /admin
@@ -136,7 +137,7 @@ src/lib/
 src/components/
   admin/                       LinkForm (useActionState, per-field errors), CopyButton, DeleteButton, AdminHeader, ClicksChart + Breakdown
   brand/BrandIcon.tsx          renders kit icons as CSS masks (inherit currentColor); holds aspect ratios
-  brand/Lockup.tsx             chip + mono wordmark lockup; iconClassName prop for colour
+  brand/Lockup.tsx             chip + mono wordmark lockup, then divider + AWS logo, then divider + college crest; iconClassName, awsClassName, collegeClassName, textClassName props
   motion/Preloader.tsx         first-visit intro, inert page while showing, fallback timer, dispatches PRELOADER_DONE
   motion/SmoothScroll.tsx      Lenis + ScrollTrigger sync; holds scroll until intro is done
   motion/PixelTrail.tsx        global mint pixel cursor trail (desktop fine pointer only)
@@ -227,6 +228,7 @@ Mint is the one accent. Purple, amber, blue and magenta appear only as solid "br
 - **Kit quirk (G4):** `Brandmarks/Alternate (Without AWS)` contains a personal photo, not a logo. Do not use it. Primary brandmark SVG fills also do not match their filenames.
 - The lockup is rebuilt in code (chip + "AWS Student Builder Group" / "at BVCOE, New Delhi" in Ember Mono) so it stays live text. It ends with a thin divider and the **AWS logo** (`BrandIcon name="aws"`, accessible name "AWS"), as on the kit's banner. `Lockup` props: `aws` (default true), `awsClassName`, `textClassName`. The nav hides the wordmark text (`textClassName="max-sm:sr-only"`) and the AWS group (`awsClassName="max-sm:hidden"`) below 640px because the phone nav has no room; on phones the hero shows the AWS logo + "Student Builder Group" above the headline instead (`sm:hidden`). The footer lockup shows it from `sm`.
 - The AWS logo is official artwork: never redraw or recolour it beyond single-colour (it renders as a mask in `currentColor`: paper on dark, mint-ink on the mint footer). The SVG came from `Presentation Template/AWS_StudentBuilderGroups_PPTTemplate_Final .pptx` > `ppt/media/` (the 300.73x179.82 files are the AWS logo in several colours).
+- After the AWS logo the lockup has a second divider and the **Bharati Vidyapeeth crest** (`public/brand/mark/bvp.png`, alt "Bharati Vidyapeeth"), as the optica site's nav shows the college logo after its own (user request 2026-11-24). It is official artwork shown in its own colours: never recolour, redraw or crop it. Height: `h-7` (28px) compact, `h-9` (36px) compact from `lg`, `h-10` full. Props `college` (default true) and `collegeClassName`. Where it hides: nav below 360px and from 640 to 1023px (`max-[359px]:hidden sm:max-lg:hidden`; the 768 nav has 32px spare and the 640 bar fits the full lockup + AWS only); 404, admin header and admin login below 640px (`max-sm:hidden`, the full wordmark leaves no room). Phones on /, /links and the warp page show chip + crest (wordmark is sr-only there). The footer lockup (from `sm`) shows it on the mint block.
 - No hand-drawn SVG icons and no third-party icon sets.
 
 ### 6.4 Shape, theme and copy rules
@@ -524,6 +526,14 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-24: College crest in the lockup
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user: "add in the college logo as well just like it's added in the optica website" (optica's nav: club logo, thin divider, Bharati Vidyapeeth crest).
+- Files added: `public/brand/mark/bvp.png` (optica's `college-logo.png` 1251x600, trimmed, resized to 375x180, metadata stripped, 56 KB).
+- Files changed: `src/components/brand/Lockup.tsx` (divider + crest after the AWS logo via `next/image`; `college`, `collegeClassName` props; crest group `shrink-0`); `src/components/sections/Nav.tsx` (`collegeClassName="max-[359px]:hidden sm:max-lg:hidden"`); `src/app/not-found.tsx`, `src/components/admin/AdminHeader.tsx`, `src/app/admin/login/page.tsx` (`collegeClassName="max-sm:hidden"`). Details in 6.3.
+- Verified (production build): nav at 320, 360, 390, 640, 768, 1024, 1440, top of page and with the scrolled logo plate: crest 58x28 on phones and 75x36 from 1024, hidden at 320, 640 and 768, never overlapping the nav bar (smallest gap 27px at 360 plated), no horizontal overflow; /links, warp preview, 404, admin login and footer at 320/390/640 without overflow or squeeze; screenshots at 1440 and 390 (nav) and 1440 (footer on mint); axe on the header 0 violations; lint and build clean.
+- Not verified: OG images (unchanged; they carry the AWS logo only).
 
 #### 2026-11-23: Warp countdown counts cleanly 5 4 3 2 1
 - Agent/tool: Claude Code (Claude Opus 5.5)

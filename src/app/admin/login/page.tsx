@@ -23,7 +23,7 @@ export default function LoginPage({ searchParams }: PageProps<"/admin/login">) {
   return (
     <main id="main" className="grid min-h-[100dvh] place-items-center px-4">
       <div className="w-full max-w-md bg-grey-850 p-8 shadow-[10px_10px_0_0_var(--mint)] outline outline-1 outline-grey-700 sm:p-10">
-        <Lockup compact />
+        <Lockup compact collegeClassName="max-sm:hidden" />
         <h1 className="mt-10 font-mono text-3xl leading-tight font-bold tracking-tight">Links admin</h1>
         <p className="mt-3 text-grey-300">Sign in with a core team GitHub account to manage short links.</p>
         <Suspense fallback={null}>

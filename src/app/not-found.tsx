@@ -20,7 +20,8 @@ export default function NotFound() {
     <main id="main" className="bg-pixel-grid min-h-[100dvh] px-4 py-6 [--cell:72px] sm:px-8">
       <div className="flex items-center justify-between gap-4">
         <Link href="/">
-          <Lockup compact />
+          {/* Phones: no room for the crest beside the wordmark and Back home */}
+          <Lockup compact collegeClassName="max-sm:hidden" />
         </Link>
         <Link href="/" className="pressable inline-flex h-11 items-center bg-mint px-4 text-sm font-bold text-mint-ink uppercase hover:bg-paper">
           Back home

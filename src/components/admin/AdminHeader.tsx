@@ -5,7 +5,7 @@ export function AdminHeader({ login }: { login: string }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-grey-700 bg-grey-850/95 px-4 py-4 sm:px-8">
       <Link href="/admin" className="text-paper">
-        <Lockup compact />
+        <Lockup compact collegeClassName="max-sm:hidden" />
       </Link>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-grey-300">

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { BrandIcon } from "./BrandIcon";
 
 /** Program icon + mono wordmark, following the kit's horizontal lockup. */
@@ -7,6 +8,8 @@ export function Lockup({
   iconClassName = "text-mint",
   aws = true,
   awsClassName = "",
+  college = true,
+  collegeClassName = "",
   textClassName = "",
 }: {
   compact?: boolean;
@@ -16,9 +19,15 @@ export function Lockup({
   aws?: boolean;
   /** Extra classes for the AWS logo + divider group (e.g. to hide it on small screens). */
   awsClassName?: string;
+  /** Show the Bharati Vidyapeeth crest after a divider (as on the optica site's nav). */
+  college?: boolean;
+  /** Extra classes for the crest + divider group. */
+  collegeClassName?: string;
   /** Extra classes for the wordmark text (e.g. `max-sm:sr-only` in the nav). */
   textClassName?: string;
 }) {
+  // Crest detail needs more height than the AWS wordmark to read; 36px max keeps it inside the 48px nav bar
+  const crestH = compact ? 36 : 40;
   return (
     <span className={`inline-flex items-center gap-3 ${className}`}>
       <BrandIcon name="chip" size={compact ? 26 : 34} className={iconClassName} />
@@ -34,6 +43,22 @@ export function Lockup({
           <BrandIcon name="aws" size={compact ? 22 : 28} label="AWS" />
         </span>
       )}
+      {college && (
+        <span className={`inline-flex shrink-0 items-center gap-3 ${collegeClassName}`}>
+          <span aria-hidden="true" className={`block w-px self-stretch bg-current/30 ${compact ? "my-1" : "my-0.5"}`} />
+          {/* Official crest in its own colours: never recoloured or redrawn */}
+          <Image
+            src="/brand/mark/bvp.png"
+            alt="Bharati Vidyapeeth"
+            width={Math.round(crestH * CREST_RATIO)}
+            height={crestH}
+            className={`block w-auto shrink-0 object-contain ${compact ? "h-7 lg:h-9" : "h-10"}`}
+            draggable={false}
+          />
+        </span>
+      )}
     </span>
   );
 }
+
+const CREST_RATIO = 375 / 180;
