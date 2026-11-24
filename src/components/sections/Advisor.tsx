@@ -199,7 +199,8 @@ export function Advisor() {
             {advisor.name}
           </p>
           <div data-adv-fade className="mt-6">
-            <p className="text-xl font-bold text-paper sm:text-2xl">{advisor.role}</p>
+            <p className="text-xl font-bold text-paper sm:text-2xl">{advisor.title}</p>
+            <p className="mt-2 text-xl font-bold text-paper sm:text-2xl">{advisor.role}</p>
             <p className="mt-1 text-sm text-grey-300 sm:text-base">{advisor.roleDetail}</p>
           </div>
           <p data-adv-fade className="mt-6 max-w-[52ch] text-lg leading-relaxed text-paper sm:text-xl">

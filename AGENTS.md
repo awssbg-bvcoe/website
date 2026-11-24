@@ -265,7 +265,7 @@ Photos (supplied 2026-11-11) live in `public/team/<name-slug>.jpg`: 960x720 (the
 
 Card order (array order in `team.ts`, user-specified; it drives both the mobile pass and the desktop board spots): Samyak, Arya, Pakhshi, Chetna, Tanisha, Aamir. On desktop that keeps Arya next to Samyak and Aamir in the bottom-right spot. Never publish phone numbers, emails, addresses or ID numbers from the source PDFs.
 
-Faculty advisor: **Dr. Yugnanda Puri**. Role "President, Institute Innovation Cell" with "IIC (AICTE, Ministry of Education)"; credentials Ph.D. in Optical Communication, Dean of R&D, Associate Professor. Source: the faculty advisor section of `~/projects/optica-website` (she advises both clubs). By user decision nothing Optica-specific is shown (no "Founded BVP Optica", no Optica bio, no Optica quote; no quote at all until she gives one for this club). Photo `public/team/yugnanda-puri.jpg` (800x1000, 4:5, from the Optica site's `yugnanda_mam.jpg`, metadata stripped).
+Faculty advisor: **Dr. Yugnanda Puri**. Title "Dean of Research and Development, BVCOE, New Delhi" (`advisor.title`, shown first under her name; user asked 2026-11-24 for the full form, never "R&D"). Role "President, Institute Innovation Cell" with "IIC (AICTE, Ministry of Education)"; credentials Ph.D. in Optical Communication, Dean of R&D, Associate Professor. Source: the faculty advisor section of `~/projects/optica-website` (she advises both clubs). By user decision nothing Optica-specific is shown (no "Founded BVP Optica", no Optica bio, no Optica quote; no quote at all until she gives one for this club). Photo `public/team/yugnanda-puri.jpg` (800x1000, 4:5, from the Optica site's `yugnanda_mam.jpg`, metadata stripped).
 
 Club contact email: `awssbg.bvcoe@gmail.com` (`site.contactEmail`, supplied by the user 2026-11-11). Used by the partner section (mailto with subject "Partnership with AWS Student Builder Group, BVCOE") and the footer. The partner offers (`partnerWays` in `site.ts`) stay within what the programme does: sponsored events, sessions/demos/labs, careers and mentoring, co-hosting with other clubs (from the KT deck). No tiers, prices or sponsor names are stated; add them only from real material.
 
@@ -526,6 +526,12 @@ Template:
 ```
 
 ### 17.2 Entries
+
+#### 2026-11-24: Advisor title: Dean of Research and Development, BVCOE, New Delhi
+- Agent/tool: Claude Code (Claude Opus 5.5)
+- Requested by user (screenshot of the advisor name and role): "here also add Dean of R&D BVCOE New Delhi", then "full form Research and Development".
+- Files changed: `src/content/team.ts` (`Advisor.title` = "Dean of Research and Development, BVCOE, New Delhi"; "R&D" spelled out in the bio and the credential tile); `src/components/sections/Advisor.tsx` (title line above the President line, same style, `mt-2` between them); `src/app/llms.txt/route.ts` (title in the advisor line); `src/lib/seo.ts` (JSON-LD `jobTitle` lists title and role).
+- Verified (production build): screenshots at 1440x900 and 390x844 (title wraps to two lines on phones); no horizontal overflow; axe 0 violations on `#advisor`; `/llms.txt` shows the title; no "R&D" left in `src/`; lint and build clean.
 
 #### 2026-11-24: College crest in the lockup
 - Agent/tool: Claude Code (Claude Opus 5.5)

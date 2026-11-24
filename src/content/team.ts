@@ -57,6 +57,8 @@ export const team: TeamMember[] = [
 
 export type Advisor = {
   name: string;
+  /** Main college post, shown first under the name */
+  title: string;
   role: string;
   roleDetail: string;
   bio: string;
@@ -67,13 +69,14 @@ export type Advisor = {
 /** Faculty advisor. Credentials carried over from the BVP Optica site (same person); nothing Optica-specific is shown. */
 export const advisor: Advisor = {
   name: "Dr. Yugnanda Puri",
+  title: "Dean of Research and Development, BVCOE, New Delhi",
   role: "President, Institute Innovation Cell",
   roleDetail: "IIC (AICTE, Ministry of Education)",
-  bio: "Dr. Puri guides the group. As Dean of R&D and President of the Institute Innovation Cell, she champions research and innovation across BVCOE.",
+  bio: "Dr. Puri guides the group. As Dean of Research and Development and President of the Institute Innovation Cell, she champions research and innovation across BVCOE.",
   photo: "/team/yugnanda-puri.jpg",
   credentials: [
     { label: "Ph.D. in Optical Communication", icon: "trophy", tone: "amber" },
-    { label: "Dean of R&D", icon: "bolt", tone: "mint" },
+    { label: "Dean of Research and Development", icon: "bolt", tone: "mint" },
     { label: "Associate Professor", icon: "speaker", tone: "blue" },
   ],
 };

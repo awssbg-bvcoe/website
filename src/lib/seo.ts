@@ -62,7 +62,7 @@ export function homeJsonLd() {
           {
             "@type": "OrganizationRole",
             roleName: "Faculty Advisor",
-            member: { "@type": "Person", name: advisor.name, jobTitle: advisor.role, image: abs(advisor.photo) },
+            member: { "@type": "Person", name: advisor.name, jobTitle: [advisor.title, advisor.role], image: abs(advisor.photo) },
           },
         ],
       },

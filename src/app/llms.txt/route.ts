@@ -16,7 +16,7 @@ ${programs.map((p) => `- ${p.title}: ${p.body}`).join("\n")}
 ## Core team
 
 ${team.map((m) => `- ${m.name}, ${m.role}`).join("\n")}
-- ${advisor.name}, Faculty Advisor (${advisor.role})
+- ${advisor.name}, Faculty Advisor (${advisor.title}; ${advisor.role})
 
 ## Links
 
