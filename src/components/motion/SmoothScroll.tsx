@@ -21,6 +21,10 @@ export function SmoothScroll() {
       autoRaf: false,
       // In-page links are handled below with distance-based, eased scrolling
       anchors: false,
+      // Touch: Lenis drives the page and the scroll stops when the finger lifts (no momentum fling).
+      // Native phone inertia kept scrolling after release and flew through the scroll-driven sections.
+      syncTouch: true,
+      touchInertiaExponent: 0,
       prevent: (node) => node.closest("[data-lenis-prevent]") !== null,
     });
     window.__lenis = lenis;

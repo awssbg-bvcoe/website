@@ -143,10 +143,12 @@ export function Heads() {
 
         // Scroll needed per pixel of sideways pan: more than 1:1 so each card takes a real swipe (user asked)
         const EFFORT = 2.5;
-        // Rail = board height + scroll length of the pan, so the sticky board stays put for exactly the pan
+        // The board holds still this long after it locks, so the first card is always seen before the pan
+        const dwell = () => window.innerHeight * 0.35;
+        // Rail = board height + dwell + scroll length of the pan, so the sticky board stays put for all of it
         const layout = () => {
           gsap.set(board, { position: "sticky", top: stickyTop() });
-          gsap.set(rail, { height: board.offsetHeight + distance() * EFFORT });
+          gsap.set(rail, { height: board.offsetHeight + dwell() + distance() * EFFORT });
         };
         layout();
         ScrollTrigger.addEventListener("refreshInit", layout);
@@ -156,7 +158,7 @@ export function Heads() {
           ease: "none",
           scrollTrigger: {
             trigger: rail,
-            start: () => `top top+=${stickyTop()}`,
+            start: () => `top top+=${stickyTop() - dwell()}`,
             end: () => `+=${distance() * EFFORT}`,
             // Locked to the scroll position (no lag): a lagged scrub kept sliding after a fling stopped and read as rubber banding
             scrub: true,
@@ -213,7 +215,6 @@ export function Heads() {
         <ul
           data-track
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 py-8 [scrollbar-width:none] sm:px-8 lg:block lg:p-0"
-          data-lenis-prevent-touch
           tabIndex={0}
           aria-label="Heads"
         >
