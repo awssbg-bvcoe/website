@@ -56,7 +56,8 @@ export function Footer() {
           <span aria-hidden="true">↑</span> Back to top
         </button>
         <span className="hidden sm:block">
-          <Lockup compact iconClassName="text-mint-ink" />
+          {/* Full-strength second line: the footer block takes the site accent, and 70% ink fails contrast on purple */}
+          <Lockup compact iconClassName="text-mint-ink" textClassName="[&>span:last-child]:text-current" />
         </span>
       </div>
 

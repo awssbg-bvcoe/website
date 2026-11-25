@@ -1,5 +1,6 @@
 "use client";
 
+import { getAccent } from "@/lib/accent";
 import { useEffect, useRef } from "react";
 
 const CELL = 28;
@@ -86,7 +87,8 @@ export function PixelRain({ className = "" }: { className?: string }) {
           if (r < 0 || r >= rows) continue;
           // Alpha drops in hard steps down the trail
           ctx.globalAlpha = k === 0 ? 0.9 : Math.max(0.08, Math.round((1 - k / d.len) * 4) / 4) * 0.55;
-          ctx.fillStyle = k === 0 && near ? "#f2f4f5" : d.color;
+          // Mint drops follow the site accent (the core team section can recolour the site)
+          ctx.fillStyle = k === 0 && near ? "#f2f4f5" : d.color === "#00e582" ? getAccent() : d.color;
           ctx.fillRect(d.col * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
         }
       }
@@ -94,10 +96,10 @@ export function PixelRain({ className = "" }: { className?: string }) {
       // Pointer scan box
       if (pointer.c >= 0) {
         ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = "#00e582";
+        ctx.strokeStyle = getAccent();
         ctx.lineWidth = 2;
         ctx.strokeRect((pointer.c - 3) * CELL + 1, (pointer.r - 3) * CELL + 1, CELL * 7 - 2, CELL * 7 - 2);
-        ctx.fillStyle = "#00e582";
+        ctx.fillStyle = getAccent();
         ctx.globalAlpha = 0.35;
         ctx.fillRect(pointer.c * CELL + 1, pointer.r * CELL + 1, CELL - 2, CELL - 2);
       }

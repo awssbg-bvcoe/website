@@ -67,7 +67,8 @@ export function Advisor() {
             cycle = gsap.timeline({ repeat: -1 });
             tiles.forEach((t) => {
               cycle!
-                .to(t, { outlineColor: "#00e582", duration: 0.01 })
+                // Inline var() so the highlight follows the site accent (core team colours)
+                .call(() => void (t.style.outlineColor = "var(--mint)"))
                 .fromTo(t.querySelector("[data-adv-icon]"), { scale: 1 }, { scale: 1.15, duration: 0.3, ease: "steps(3)", yoyo: true, repeat: 1 }, "<")
                 .to(t, { outlineColor: "#2a3542", duration: 0.01 }, "+=1.4");
             });

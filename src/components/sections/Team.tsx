@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { setAccent } from "@/lib/accent";
 import { scrollTarget } from "@/lib/scroll";
 import { BrandIcon } from "@/components/brand/BrandIcon";
 import { team, type TeamMember } from "@/content/team";
@@ -25,8 +26,9 @@ const BADGE: Record<TeamMember["tone"], string> = {
   paper: "bg-paper text-grey-850 shadow-[4px_4px_0_0_#00e582]",
 };
 
-/** Scroll distance (in viewport heights) each member holds the stage */
+/** Scroll distance (in viewport heights) each member holds the stage; phones need a longer swipe per member */
 const STEP_VH = 0.6;
+const STEP_VH_MOBILE = 1;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -69,6 +71,10 @@ export function Team() {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const trigger = useRef<ScrollTrigger | null>(null);
   const [active, setActive] = useState(0);
+  // True while the section is held (between the rail's start and end): the site takes the member's colour
+  const [holding, setHolding] = useState(false);
+  // Easter egg: the plain square on the stage keeps a member's colour for the rest of the site
+  const [kept, setKept] = useState<string | null>(null);
   const reduced = useSyncExternalStore(subscribeRM, getRM, getRMServer);
   const firstSwitch = useRef(true);
 
@@ -98,9 +104,18 @@ export function Team() {
     () => {
       const rail = root.current!.querySelector<HTMLElement>("[data-team-rail]")!;
       const panel = root.current!.querySelector<HTMLElement>("[data-team-panel]")!;
-      const step = () => Math.max(320, window.innerHeight * STEP_VH);
-      const stickyTop = () => parseFloat(getComputedStyle(panel).top) || 0;
+      const step = () => Math.max(320, window.innerHeight * (window.innerWidth < 1024 ? STEP_VH_MOBILE : STEP_VH));
+      // Whole section (title + members) held: centred under the nav when it fits, else bottom-aligned
+      // so the members are always fully visible (a negative top lets the title slide partly off on short screens)
+      const navH = () => (window.innerWidth >= 1024 ? 96 : 80);
+      const stickyTop = () => {
+        const vh = window.innerHeight;
+        const h = panel.offsetHeight;
+        // 32px spare: a longer name (Aamir Ali Zaidi wraps) grows the panel after it was measured
+        return h <= vh - navH() - 32 ? navH() + (vh - navH() - h) / 2 : vh - h - 32;
+      };
       const layout = () => {
+        panel.style.top = `${stickyTop()}px`;
         rail.style.height = `${panel.offsetHeight + n * step()}px`;
       };
       layout();
@@ -110,6 +125,7 @@ export function Team() {
         start: () => `top top+=${stickyTop()}`,
         end: () => `+=${n * step()}`,
         invalidateOnRefresh: true,
+        onToggle: (self) => setHolding(self.isActive),
         onUpdate: (self) => {
           const i = Math.min(n - 1, Math.floor(self.progress * n));
           setActive((a) => (a === i ? a : i));
@@ -120,10 +136,18 @@ export function Team() {
         trigger.current?.kill();
         trigger.current = null;
         rail.style.height = "";
+        panel.style.top = "";
       };
     },
     { scope: root },
   );
+
+  // Site theme: the member on stage while held; afterwards (above or below) the kept colour, else mint
+  const tone = TONE_HEX[team[active].tone];
+  useEffect(() => {
+    setAccent(holding ? tone : kept);
+  }, [holding, tone, kept]);
+  useEffect(() => () => setAccent(null), []);
 
   // Intro: roster tiles drop in from a spin, the stage lands from a tilt, corners snap on
   useGSAP(
@@ -169,14 +193,17 @@ export function Team() {
         .fromTo(q("[data-team-badge]"), { scale: 1.7, rotate: -12, opacity: 0 }, { scale: 1, rotate: -3, opacity: 1, duration: 0.35, ease: "steps(4)" }, 0.2)
         .fromTo(q("[data-team-copy]"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "snap" }, 0.3)
         .fromTo(q("[data-team-ghost-num]"), { yPercent: 40, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.5, ease: "steps(5)" }, 0)
-        .fromTo(q("[data-team-p1]"), { scale: 0, rotate: -30 }, { scale: 1, rotate: -8, duration: 0.4, ease: "back.out(3)" }, 0);
+        .fromTo(q("[data-team-p1]"), { scale: 0 }, { scale: 1, duration: 0.3, ease: "steps(3)" }, 0);
     },
     { scope: root, dependencies: [active], revertOnUpdate: false },
   );
 
   return (
     <section ref={root} id="team" aria-labelledby="team-title" className="relative overflow-x-clip px-4 py-28 sm:px-8 lg:py-40">
-      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+      {/* Rail: tall enough for one scroll step per member; the whole section (title + members) sticks inside it */}
+      <div data-team-rail>
+      <div data-team-panel className="sticky top-20 lg:top-24">
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 lg:gap-y-6">
         <h2 id="team-title" className="font-mono text-[clamp(2.75rem,9vw,9rem)] leading-[0.9] font-bold tracking-tight uppercase">
           <span className="block overflow-hidden">
             <span data-team-title-row className="block">
@@ -194,9 +221,7 @@ export function Team() {
         </p>
       </div>
 
-      {/* Rail: tall enough for one scroll step per member; the panel sticks inside it */}
-      <div data-team-rail className="mt-14">
-      <div data-team-panel className="sticky top-20 grid gap-4 sm:gap-6 lg:top-24 lg:grid-cols-12 lg:items-start lg:gap-10">
+      <div className="mt-8 grid gap-4 sm:gap-6 lg:mt-12 lg:grid-cols-12 lg:items-start lg:gap-10">
         {/* Roster: pick a head (tabs) */}
         <div className="lg:order-2 lg:col-span-4">
           {/* Which member of how many: one block per member, lit up to the current one */}
@@ -250,10 +275,8 @@ export function Team() {
                     <span
                       data-team-p1
                       aria-hidden="true"
-                      className="absolute -top-3 -right-2 z-10 rotate-[-8deg] bg-mint px-1 py-0.5 font-mono text-[0.6rem] sm:px-1.5 sm:text-[0.7rem] font-bold text-mint-ink motion-safe:animate-[team-blink_1s_steps(1)_infinite]"
-                    >
-                      P1
-                    </span>
+                      className="absolute -top-1.5 -right-1.5 z-10 block h-3 w-3 bg-mint motion-safe:animate-[team-blink_1s_steps(1)_infinite]"
+                    />
                   )}
                 </button>
               );
@@ -317,8 +340,28 @@ export function Team() {
 
             {/* Switch flash in the head's colour */}
             <div aria-hidden="true" data-team-flash className="pointer-events-none absolute inset-0 opacity-0" style={{ backgroundColor: TONE_HEX[head.tone] }} />
+
+            {/* Easter egg: a plain square. Pressing it keeps this member's colour as the site theme after the section */}
+            <button
+              type="button"
+              aria-pressed={kept === TONE_HEX[head.tone]}
+              aria-label={`Keep ${head.name.split(" ")[0]}'s colour for the rest of the site`}
+              onClick={(e) => {
+                const hex = TONE_HEX[head.tone];
+                setKept((k) => (k === hex ? null : hex));
+                if (!reduced) gsap.fromTo(e.currentTarget, { scale: 1.8, rotate: 45 }, { scale: 1, rotate: 0, duration: 0.35, ease: "steps(4)" });
+              }}
+              className="absolute top-3 right-3 z-10 grid h-6 w-6 place-items-center sm:top-4 sm:right-4"
+            >
+              <span
+                aria-hidden="true"
+                className={`block h-3.5 w-3.5 outline outline-2 -outline-offset-2 transition-colors duration-150 ${kept === TONE_HEX[head.tone] ? "" : "outline-grey-500 hover:outline-paper"}`}
+                style={kept === TONE_HEX[head.tone] ? { backgroundColor: TONE_HEX[head.tone], outlineColor: TONE_HEX[head.tone] } : undefined}
+              />
+            </button>
           </div>
         </div>
+      </div>
       </div>
       </div>
     </section>

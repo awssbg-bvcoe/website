@@ -227,14 +227,14 @@ export function Join() {
 
       <style>{`
         .chip-chase span { animation: chip-chase 3.2s steps(1) infinite; }
-        @keyframes chip-chase { 0% { background: #00e582; } 6% { background: rgb(0 229 130 / 0.35); } 12%, 100% { background: transparent; } }
+        @keyframes chip-chase { 0% { background: var(--mint); } 6% { background: color-mix(in srgb, var(--mint) 35%, transparent); } 12%, 100% { background: transparent; } }
         .march::before {
           content: ""; position: absolute; inset: -6px; pointer-events: none;
           background:
-            linear-gradient(90deg, #00e582 50%, transparent 0) top / 16px 3px repeat-x,
-            linear-gradient(90deg, #00e582 50%, transparent 0) bottom / 16px 3px repeat-x,
-            linear-gradient(0deg, #00e582 50%, transparent 0) left / 3px 16px repeat-y,
-            linear-gradient(0deg, #00e582 50%, transparent 0) right / 3px 16px repeat-y;
+            linear-gradient(90deg, var(--mint) 50%, transparent 0) top / 16px 3px repeat-x,
+            linear-gradient(90deg, var(--mint) 50%, transparent 0) bottom / 16px 3px repeat-x,
+            linear-gradient(0deg, var(--mint) 50%, transparent 0) left / 3px 16px repeat-y,
+            linear-gradient(0deg, var(--mint) 50%, transparent 0) right / 3px 16px repeat-y;
           animation: march 0.8s steps(4) infinite;
         }
         @keyframes march { to { background-position: 16px 0, -16px 100%, 0 -16px, 100% 16px; } }

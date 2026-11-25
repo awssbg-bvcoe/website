@@ -141,10 +141,12 @@ export function Heads() {
         // Centre the board when it fits, otherwise hold it from the top
         const stickyTop = () => Math.max(0, (window.innerHeight - board.offsetHeight) / 2);
 
-        // Rail = board height + pan distance, so the sticky board stays put for exactly the pan
+        // Scroll needed per pixel of sideways pan: more than 1:1 so each card takes a real swipe (user asked)
+        const EFFORT = 2.5;
+        // Rail = board height + scroll length of the pan, so the sticky board stays put for exactly the pan
         const layout = () => {
           gsap.set(board, { position: "sticky", top: stickyTop() });
-          gsap.set(rail, { height: board.offsetHeight + distance() });
+          gsap.set(rail, { height: board.offsetHeight + distance() * EFFORT });
         };
         layout();
         ScrollTrigger.addEventListener("refreshInit", layout);
@@ -155,8 +157,8 @@ export function Heads() {
           scrollTrigger: {
             trigger: rail,
             start: () => `top top+=${stickyTop()}`,
-            end: () => `+=${distance()}`,
-            // 1:1 with the finger: a lagged scrub kept sliding after a fling stopped and read as rubber banding
+            end: () => `+=${distance() * EFFORT}`,
+            // Locked to the scroll position (no lag): a lagged scrub kept sliding after a fling stopped and read as rubber banding
             scrub: true,
             invalidateOnRefresh: true,
             onUpdate: (self) => gsap.set(bar, { scaleX: self.progress }),

@@ -1,5 +1,6 @@
 "use client";
 
+import { getAccent } from "@/lib/accent";
 import { useEffect, useRef } from "react";
 
 const COLS = 16;
@@ -72,7 +73,7 @@ export function LifeGrid({ className = "" }: { className?: string }) {
       for (let i = 0; i < cells.length; i++) {
         const x = ox + (i % COLS) * size;
         const y = oy + Math.floor(i / COLS) * size;
-        ctx.fillStyle = cells[i] ? "#00e582" : "rgba(169,180,192,0.08)";
+        ctx.fillStyle = cells[i] ? getAccent() : "rgba(169,180,192,0.08)";
         ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
       }
     };

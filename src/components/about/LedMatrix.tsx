@@ -1,5 +1,6 @@
 "use client";
 
+import { getAccent } from "@/lib/accent";
 import { useEffect, useRef } from "react";
 
 // 5x7 pixel font, rows top to bottom
@@ -86,7 +87,7 @@ export function LedMatrix({ className = "" }: { className?: string }) {
             ctx.fillStyle = "#ff9900";
             ctx.globalAlpha = Math.ceil(p * 3) / 3;
           } else if (lit) {
-            ctx.fillStyle = "#00e582";
+            ctx.fillStyle = getAccent();
             ctx.globalAlpha = 1;
           } else {
             ctx.fillStyle = "#a9b4c0";

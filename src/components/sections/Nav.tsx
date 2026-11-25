@@ -171,7 +171,7 @@ export function Nav() {
               key={item.href}
               href={item.href}
               data-nav-link
-              className="nav-link pressable relative hidden items-center px-3 text-sm font-bold text-paper uppercase aria-[current]:text-mint sm:px-4 md:flex"
+              className="nav-link pressable relative hidden items-center px-3 text-sm font-bold text-paper uppercase aria-[current]:text-[color-mix(in_srgb,var(--mint)_72%,white)] sm:px-4 md:flex"
             >
               {item.label}
             </a>

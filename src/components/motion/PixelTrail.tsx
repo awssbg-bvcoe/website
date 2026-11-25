@@ -1,5 +1,6 @@
 "use client";
 
+import { getAccent } from "@/lib/accent";
 import { useEffect, useRef } from "react";
 
 const CELL = 28;
@@ -51,7 +52,7 @@ export function PixelTrail() {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#00e582";
+      ctx.fillStyle = getAccent();
       let alive = 0;
       for (let i = 0; i < life.length; i++) {
         const v = life[i];

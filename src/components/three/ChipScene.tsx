@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
+import { accentVersion, getAccent } from "@/lib/accent";
 
 /**
  * Cells of the AWS Student Builder Group program icon on its native 9x9 grid
@@ -211,9 +212,18 @@ export default function ChipScene({ progress }: { progress: MutableRefObject<Sce
       }
     };
 
+    let seenAccent = -1;
     function frame() {
       raf = 0;
       syncResolution();
+      // Follow the site accent (the core team section recolours the site; the default is mint)
+      if (seenAccent !== accentVersion()) {
+        seenAccent = accentVersion();
+        MINT.set(getAccent());
+        chipMat.color.copy(MINT);
+        chipMat.emissive.copy(MINT);
+        sparkMat.color.copy(MINT);
+      }
       const t = (performance.now() - t0) / 1000;
       const p = THREE.MathUtils.clamp(progress.current.value, 0, 1);
       // Automatic rebuild pulse, or a manual one from a click (kick)
