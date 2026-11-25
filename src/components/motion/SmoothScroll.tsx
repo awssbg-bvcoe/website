@@ -23,10 +23,10 @@ export function SmoothScroll() {
       anchors: false,
       // Touch: Lenis drives the page with a short glide after the finger lifts. Native phone inertia
       // flew through the scroll-driven sections, none at all (exponent 0) was painful to scroll.
-      // Glide = (px per frame at release)^exponent: 1.5 gives about 160px for a 30px/frame flick and 350 for
+      // Glide = (px per frame at release)^exponent: 1.6 gives about 230px for a 30px/frame flick and 525 for
       // 50px/frame (Lenis default 1.7: 320 and 770). Raise towards 1.7 for more glide, lower for less.
       syncTouch: true,
-      touchInertiaExponent: 1.5,
+      touchInertiaExponent: 1.6,
       prevent: (node) => node.closest("[data-lenis-prevent]") !== null,
     });
     window.__lenis = lenis;
