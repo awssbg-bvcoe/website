@@ -1,5 +1,5 @@
 import { programs, site } from "@/content/site";
-import { advisor, team } from "@/content/team";
+import { advisor, heads, team } from "@/content/team";
 
 /** True on Vercel preview/development deployments; those must never be indexed. */
 export const isNonProductionDeploy = Boolean(process.env.VERCEL_ENV) && process.env.VERCEL_ENV !== "production";
@@ -9,7 +9,7 @@ export const abs = (path: string) => new URL(path, site.url).toString();
 /** Images crawlers may index (image sitemap + structured data). */
 export const indexableImages = [
   abs("/opengraph-image"),
-  ...team.flatMap((m) => (m.photo ? [abs(m.photo)] : [])),
+  ...[...team, ...heads].flatMap((m) => (m.photo ? [abs(m.photo)] : [])),
   abs(advisor.photo),
 ];
 
@@ -54,7 +54,8 @@ export function homeJsonLd() {
           itemOffered: { "@type": "Service", name: p.title, description: p.body },
         })),
         member: [
-          ...team.map((m) => ({
+          // Unfilled roles (tbd) are not people, so they stay out of the graph
+          ...[...team, ...heads.filter((h) => !h.tbd)].map((m) => ({
             "@type": "OrganizationRole",
             roleName: m.role,
             member: { "@type": "Person", name: m.name, ...(m.photo ? { image: abs(m.photo) } : {}) },

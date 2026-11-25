@@ -1,3 +1,5 @@
+import type { BrandIconName } from "@/content/site";
+
 export type TeamMember = {
   name: string;
   role: string;
@@ -52,6 +54,63 @@ export const team: TeamMember[] = [
     role: "Head of Community & Partnerships",
     focus: "Builds the community. Opens doors across campus and beyond.",
     tone: "paper",
+  },
+];
+
+export type Head = {
+  name: string;
+  role: string;
+  focus: string;
+  /** Path under /public; falls back to a pixel monogram when absent. */
+  photo?: string;
+  tone: "amber" | "blue" | "magenta" | "purple" | "mint";
+  icon: BrandIconName;
+  /** Role not filled yet: the card shows "?" instead of initials */
+  tbd?: boolean;
+};
+
+/** Heads of the working teams, shown in the character-select section under the core team. */
+export const heads: Head[] = [
+  {
+    name: "Vansh Tyagi",
+    photo: "/team/vansh-tyagi.jpg",
+    role: "Event Operations Head",
+    focus: "Runs every event on the ground. Venues, kits and timings, all sorted.",
+    tone: "amber",
+    icon: "wrench",
+  },
+  {
+    name: "Bhumika Rawat",
+    photo: "/team/bhumika-rawat.jpg",
+    role: "Content & Documentation Head",
+    focus: "Writes what we publish. Keeps a record of everything we run.",
+    tone: "blue",
+    icon: "speaker",
+  },
+  {
+    name: "Gaurangi Chawla",
+    photo: "/team/gaurangi-chawla.jpg",
+    role: "Design Head",
+    focus: "Designs the posters, decks and visuals for every event.",
+    tone: "magenta",
+    icon: "drop",
+  },
+  {
+    // Photo to come
+    name: "Jiya Rawat",
+    role: "Outreach Head",
+    focus: "Takes the group beyond campus. Brings new people and partners in.",
+    tone: "purple",
+    icon: "teams",
+  },
+  {
+    // Not appointed yet (user, 2026-11-26): replace name and focus once decided
+    name: "To be announced",
+    role: "Social Media Head",
+    focus: "Announced soon.",
+    tone: "mint",
+    icon: "double-bracket-smile",
+    tbd: true,
   },
 ];
 

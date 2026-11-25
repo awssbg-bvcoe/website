@@ -1,5 +1,5 @@
 import { programs, site } from "@/content/site";
-import { advisor, team } from "@/content/team";
+import { advisor, heads, team } from "@/content/team";
 
 // Plain-text summary for AI search and assistants (llmstxt.org). Built from the same content as the page.
 export function GET() {
@@ -16,6 +16,13 @@ ${programs.map((p) => `- ${p.title}: ${p.body}`).join("\n")}
 ## Core team
 
 ${team.map((m) => `- ${m.name}, ${m.role}`).join("\n")}
+
+## Heads
+
+${heads.map((m) => (m.tbd ? `- ${m.role}: to be announced` : `- ${m.name}, ${m.role}`)).join("\n")}
+
+## Faculty advisor
+
 - ${advisor.name}, Faculty Advisor (${advisor.title}; ${advisor.role})
 
 ## Links

@@ -193,6 +193,13 @@ html[data-seen="1"] .preloader {
   display: none;
 }
 
+/* Core team select: the P1 tag blinks like an arcade select cursor */
+@keyframes team-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
 @keyframes scan-sweep {
   to {
     background-position: 0 120%;
