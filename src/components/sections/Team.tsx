@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useCallback, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { scrollTarget } from "@/lib/scroll";
 import { BrandIcon } from "@/components/brand/BrandIcon";
 import { team, type TeamMember } from "@/content/team";
-import { gsap, SCRAMBLE_CHARS, useGSAP } from "@/lib/gsap";
+import { gsap, SCRAMBLE_CHARS, ScrollTrigger, useGSAP } from "@/lib/gsap";
 
 const TONE_HEX: Record<TeamMember["tone"], string> = {
   mint: "#00e582",
@@ -24,9 +25,8 @@ const BADGE: Record<TeamMember["tone"], string> = {
   paper: "bg-paper text-grey-850 shadow-[4px_4px_0_0_#00e582]",
 };
 
-/** Attract mode: seconds a member stays on stage before the next one is picked */
-const HOLD = 5.5;
-const BAR_BLOCKS = 22;
+/** Scroll distance (in viewport heights) each member holds the stage */
+const STEP_VH = 0.6;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -61,35 +61,69 @@ function Portrait({ member: head, sizes, priority = false }: { member: TeamMembe
 
 /**
  * Core team as an arcade character select: a roster of tiles (tabs) and a big stage for the picked member.
- * Attract mode steps through everyone while the section is on screen, until someone picks or presses Pause.
+ * The section holds on screen (CSS sticky inside a tall rail, G21) and scrolling steps through every member,
+ * so nobody can scroll past the team without seeing all six. Picking a tile scrolls to that member's step.
  */
 export function Team() {
   const root = useRef<HTMLElement>(null);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const trigger = useRef<ScrollTrigger | null>(null);
   const [active, setActive] = useState(0);
-  // Attract mode stops for good once someone picks a head or presses Pause (WCAG 2.2.2)
-  const [playing, setPlaying] = useState(true);
-  const [inView, setInView] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const reduced = useSyncExternalStore(subscribeRM, getRM, getRMServer);
   const firstSwitch = useRef(true);
 
   const head = team[active];
-  const running = playing && inView && !hovered && !reduced;
+  const n = team.length;
 
-  const pick = useCallback((i: number, focus = false) => {
-    setPlaying(false);
-    setActive(i);
-    if (focus) tabs.current[i]?.focus();
-  }, []);
+  // Scroll to the middle of member i's step; the scroll position is the source of truth for `active`
+  const pick = useCallback(
+    (i: number, focus = false) => {
+      setActive(i);
+      if (focus) tabs.current[i]?.focus({ preventScroll: true });
+      const st = trigger.current;
+      if (st) scrollTarget(st.start + ((i + 0.5) / n) * (st.end - st.start), reduced);
+    },
+    [n, reduced],
+  );
 
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
-    const n = team.length;
     const next = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: n - 1 }[e.key];
     if (next === undefined) return;
     e.preventDefault();
-    pick((next + n) % n, true);
+    pick(Math.min(n - 1, Math.max(0, next)), true);
   };
+
+  // Hold: the panel sticks while the rail scrolls by; each member owns an equal slice of that distance
+  useGSAP(
+    () => {
+      const rail = root.current!.querySelector<HTMLElement>("[data-team-rail]")!;
+      const panel = root.current!.querySelector<HTMLElement>("[data-team-panel]")!;
+      const step = () => Math.max(320, window.innerHeight * STEP_VH);
+      const stickyTop = () => parseFloat(getComputedStyle(panel).top) || 0;
+      const layout = () => {
+        rail.style.height = `${panel.offsetHeight + n * step()}px`;
+      };
+      layout();
+      ScrollTrigger.addEventListener("refreshInit", layout);
+      trigger.current = ScrollTrigger.create({
+        trigger: rail,
+        start: () => `top top+=${stickyTop()}`,
+        end: () => `+=${n * step()}`,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          const i = Math.min(n - 1, Math.floor(self.progress * n));
+          setActive((a) => (a === i ? a : i));
+        },
+      });
+      return () => {
+        ScrollTrigger.removeEventListener("refreshInit", layout);
+        trigger.current?.kill();
+        trigger.current = null;
+        rail.style.height = "";
+      };
+    },
+    { scope: root },
+  );
 
   // Intro: roster tiles drop in from a spin, the stage lands from a tilt, corners snap on
   useGSAP(
@@ -110,22 +144,8 @@ export function Team() {
           )
           .fromTo(q("[data-team-corner]"), { opacity: 0, scale: 2.4 }, { opacity: 1, scale: 1, duration: 0.3, stagger: 0.05, ease: "steps(4)" }, "<0.35")
           .fromTo(q("[data-team-fade]"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "snap" }, "<");
-
-        // Giant index number drifts against the scroll
-        gsap.fromTo(
-          q("[data-team-ghost]"),
-          { yPercent: 18 },
-          { yPercent: -18, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } },
-        );
       });
-
-      // Attract mode only runs while the section is on screen
-      const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.35 });
-      io.observe(root.current!);
-      return () => {
-        io.disconnect();
-        mm.revert();
-      };
+      return () => mm.revert();
     },
     { scope: root },
   );
@@ -154,24 +174,6 @@ export function Team() {
     { scope: root, dependencies: [active], revertOnUpdate: false },
   );
 
-  // Attract mode timer: a stepped bar fills, then the next head steps up
-  useGSAP(
-    () => {
-      const bar = root.current!.querySelector<HTMLElement>("[data-team-bar]");
-      if (!bar) return;
-      gsap.set(bar, { scaleX: 0 });
-      if (!running) return;
-      const t = gsap.to(bar, {
-        scaleX: 1,
-        duration: HOLD,
-        ease: `steps(${BAR_BLOCKS})`,
-        onComplete: () => setActive((a) => (a + 1) % team.length),
-      });
-      return () => t.kill();
-    },
-    { scope: root, dependencies: [active, running], revertOnUpdate: true },
-  );
-
   return (
     <section ref={root} id="team" aria-labelledby="team-title" className="relative overflow-x-clip px-4 py-28 sm:px-8 lg:py-40">
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
@@ -192,16 +194,27 @@ export function Team() {
         </p>
       </div>
 
-      <div className="mt-14 grid gap-6 lg:grid-cols-12 lg:items-start lg:gap-10">
+      {/* Rail: tall enough for one scroll step per member; the panel sticks inside it */}
+      <div data-team-rail className="mt-14">
+      <div data-team-panel className="sticky top-20 grid gap-4 sm:gap-6 lg:top-24 lg:grid-cols-12 lg:items-start lg:gap-10">
         {/* Roster: pick a head (tabs) */}
         <div className="lg:order-2 lg:col-span-4">
-          <p data-team-fade className="mb-4 flex items-center justify-between font-mono text-sm font-bold tracking-tight text-mint uppercase">
-            <span>Select a member</span>
-            <span aria-hidden="true" className="hidden text-grey-300 lg:inline">
-              ← → to switch
+          {/* Which member of how many: one block per member, lit up to the current one */}
+          <div data-team-fade className="mb-3 flex items-center justify-between gap-4 font-mono text-sm font-bold tracking-tight text-mint uppercase sm:mb-4">
+            <span>
+              {pad(active + 1)} <span className="text-grey-300">/ {pad(n)}</span>
             </span>
-          </p>
-          <div role="tablist" aria-label="Core team members" aria-orientation="vertical" className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+            <span aria-hidden="true" className="flex gap-1">
+              {team.map((m, i) => (
+                <span
+                  key={m.name}
+                  className={`block h-3 w-5 outline outline-1 transition-colors duration-150 sm:w-7 ${i <= active ? "outline-transparent" : "bg-grey-800 outline-grey-700"}`}
+                  style={i <= active ? { backgroundColor: TONE_HEX[head.tone] } : undefined}
+                />
+              ))}
+            </span>
+          </div>
+          <div role="tablist" aria-label="Core team members" aria-orientation="vertical" className="grid grid-cols-6 gap-2 sm:gap-3 lg:grid-cols-1">
             {team.map((h, i) => {
               const selected = i === active;
               return (
@@ -219,28 +232,25 @@ export function Team() {
                   onClick={() => pick(i)}
                   onKeyDown={(e) => onTabKey(e, i)}
                   data-team-tile
-                  className={`group relative flex flex-col gap-2 p-2 text-left outline outline-2 transition-[background-color,outline-color] duration-200 lg:flex-row lg:items-center lg:gap-4 lg:p-2.5 ${
+                  className={`group relative flex flex-col p-1 text-left outline outline-2 transition-[background-color,outline-color] duration-200 sm:p-1.5 lg:flex-row lg:items-center lg:gap-4 lg:p-2 ${
                     selected ? "bg-grey-800 outline-mint" : "bg-grey-850 outline-grey-700 hover:bg-grey-800 hover:outline-grey-500"
                   }`}
                   style={selected ? { boxShadow: `6px 6px 0 0 ${TONE_HEX[h.tone]}` } : undefined}
                 >
-                  <span className="relative block aspect-square w-full shrink-0 overflow-hidden lg:aspect-[4/3] lg:w-20">
-                    <Portrait member={h} sizes="(min-width: 1024px) 5rem, 30vw" />
+                  <span className="relative block aspect-square w-full shrink-0 overflow-hidden lg:aspect-[4/3] lg:w-16">
+                    <Portrait member={h} sizes="(min-width: 1024px) 4rem, 16vw" />
                     {!selected && <span aria-hidden="true" className="absolute inset-0 bg-grey-850/45 transition-opacity group-hover:opacity-0" />}
                   </span>
-                  <span className="min-w-0">
-                    <span className="block font-mono text-xs font-bold text-grey-300">{pad(i + 1)}</span>
-                    <span className="block truncate font-mono text-sm font-bold tracking-tight text-paper sm:text-base lg:text-lg">
-                      <span className="lg:hidden">{h.name.split(" ")[0]}</span>
-                      <span className="hidden lg:inline">{h.name}</span>
-                    </span>
-                    <span className="hidden text-sm text-grey-300 lg:block">{h.role}</span>
+                  {/* Phones show the photo only (the stage names the member); the name stays for screen readers */}
+                  <span className="min-w-0 max-lg:sr-only">
+                    <span className="block truncate font-mono text-base font-bold tracking-tight text-paper">{h.name}</span>
+                    <span className="block truncate text-sm text-grey-300">{h.role}</span>
                   </span>
                   {selected && (
                     <span
                       data-team-p1
                       aria-hidden="true"
-                      className="absolute -top-3 -right-2 rotate-[-8deg] bg-mint px-1.5 py-0.5 font-mono text-[0.7rem] font-bold text-mint-ink motion-safe:animate-[team-blink_1s_steps(1)_infinite]"
+                      className="absolute -top-3 -right-2 z-10 rotate-[-8deg] bg-mint px-1 py-0.5 font-mono text-[0.6rem] sm:px-1.5 sm:text-[0.7rem] font-bold text-mint-ink motion-safe:animate-[team-blink_1s_steps(1)_infinite]"
                     >
                       P1
                     </span>
@@ -250,42 +260,10 @@ export function Team() {
             })}
           </div>
 
-          {/* Attract mode controls (not shown under reduced motion: nothing rotates there) */}
-          {!reduced && (
-            <div data-team-fade className="mt-5 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPlaying((p) => !p)}
-                className="pressable inline-flex h-10 shrink-0 items-center gap-2 bg-grey-800 px-3 font-mono text-xs font-bold text-paper uppercase outline outline-1 outline-grey-700 hover:bg-grey-700"
-              >
-                <span aria-hidden="true" className="grid h-3 w-3 place-items-center">
-                  {playing ? (
-                    <span className="flex h-3 gap-[3px]">
-                      <span className="block h-3 w-[4px] bg-current" />
-                      <span className="block h-3 w-[4px] bg-current" />
-                    </span>
-                  ) : (
-                    <span className="block h-0 w-0 border-y-[6px] border-l-[9px] border-y-transparent border-l-current" />
-                  )}
-                </span>
-                {playing ? "Pause" : "Auto"}
-              </button>
-              <div aria-hidden="true" className="relative h-3 flex-1 overflow-hidden bg-grey-800 outline outline-1 outline-grey-700">
-                <div data-team-bar className="absolute inset-0 origin-left scale-x-0" style={{ backgroundColor: TONE_HEX[head.tone] }} />
-                {/* Block dividers so the fill reads as pixels */}
-                <div
-                  className="absolute inset-0"
-                  style={{ backgroundImage: `repeating-linear-gradient(to right, transparent 0 calc(100% / ${BAR_BLOCKS} - 2px), #161d26 calc(100% / ${BAR_BLOCKS} - 2px) calc(100% / ${BAR_BLOCKS}))` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Stage: the picked head, big */}
-        <div className="lg:sticky lg:top-24 lg:order-1 lg:col-span-8" // Mouse hover pauses attract mode while reading; touch taps never set it (no pointerleave on phones)
-          onPointerEnter={(e) => e.pointerType === "mouse" && setHovered(true)}
-          onPointerLeave={() => setHovered(false)}>
+        <div className="lg:order-1 lg:col-span-8">
           <div
             data-team-stage
             id="team-panel"
@@ -302,10 +280,10 @@ export function Team() {
               </span>
             </div>
 
-            <div className="grid gap-6 p-4 sm:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] sm:items-center sm:gap-8 sm:p-6 lg:p-8">
+            <div className="grid gap-4 p-3 sm:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] sm:items-center sm:gap-8 sm:p-6 lg:p-8">
               {/* Portrait with pixel corner brackets */}
               <div className="relative">
-                <div key={active} data-team-photo className="relative aspect-[4/3] overflow-hidden bg-grey-850">
+                <div key={active} data-team-photo className="relative aspect-[16/10] overflow-hidden bg-grey-850 sm:aspect-[4/3] [@media(max-height:680px)]:aspect-[2/1] sm:[@media(max-height:680px)]:aspect-[16/10]">
                   <Portrait member={head} sizes="(min-width: 1024px) 34rem, (min-width: 640px) 48vw, 92vw" />
                   <span aria-hidden="true" data-team-scan className="pointer-events-none absolute inset-x-0 -top-full h-full bg-[linear-gradient(to_bottom,transparent_0,rgb(0_229_130/0.55)_46%,transparent_54%)]" />
                 </div>
@@ -317,12 +295,12 @@ export function Team() {
               {/* Details */}
               <div key={active} className="min-w-0">
                 <p className="font-mono text-xs font-bold tracking-[0.14em] text-grey-300 uppercase sm:text-sm">
-                  Player {pad(active + 1)} <span className="text-grey-500">/ {pad(team.length)}</span>
+                  Player {pad(active + 1)} <span className="text-grey-300/80">/ {pad(team.length)}</span>
                 </p>
-                <p data-team-name className="mt-3 font-mono text-[clamp(2rem,4.6vw,3.75rem)] leading-[0.95] font-bold tracking-tight text-paper">
+                <p data-team-name className="mt-2 font-mono text-[clamp(1.75rem,4.6vw,3.75rem)] sm:mt-3 leading-[0.95] font-bold tracking-tight text-paper">
                   {head.name}
                 </p>
-                <div className="mt-5">
+                <div className="mt-3 sm:mt-5">
                   <span
                     data-team-badge
                     className={`inline-flex rotate-[-3deg] items-center gap-2.5 px-3 py-2 font-mono text-sm font-bold uppercase sm:text-base ${BADGE[head.tone]}`}
@@ -331,7 +309,7 @@ export function Team() {
                     {head.role}
                   </span>
                 </div>
-                <p data-team-copy className="mt-6 max-w-[34ch] text-lg leading-relaxed text-paper sm:text-xl">
+                <p data-team-copy className="mt-4 max-w-[34ch] text-base leading-relaxed text-paper sm:mt-6 sm:text-xl">
                   {head.focus}
                 </p>
               </div>
@@ -341,6 +319,7 @@ export function Team() {
             <div aria-hidden="true" data-team-flash className="pointer-events-none absolute inset-0 opacity-0" style={{ backgroundColor: TONE_HEX[head.tone] }} />
           </div>
         </div>
+      </div>
       </div>
     </section>
   );
